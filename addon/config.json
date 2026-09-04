@@ -1,0 +1,8 @@
+{
+  "managedDecks": [
+    "ALL"
+  ],
+  "dashboardPort": 8766,
+  "simulationDays": 90,
+  "dailyBudgetMinutes": 30
+}

@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attention Is All You Need</title>
+  <style>
+    :root {
+      --bg: #f3f4f1;
+      --surface: #fff;
+      --ink: #151713;
+      --muted: #696e67;
+      --line: #dfe2dc;
+      --line-strong: #bfc5bb;
+      --green: #176b4d;
+      --amber: #9a5b08;
+      --amber-soft: #fff1d6;
+      --red: #a43b31;
+      --red-soft: #f8e7e4;
+      --blue: #285c8e;
+      --blue-soft: #e8f0f7;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 28px 64px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: center;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line-strong);
+    }
+    .brand { min-width: 0; }
+    h1 { margin: 0; font-size: clamp(25px, 3vw, 38px); line-height: 1.08; font-weight: 780; }
+    .subtitle { margin-top: 7px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .header-tools { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+    .sync-time { color: var(--muted); font-size: 12px; text-align: right; }
+    .deck-picker { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+    .deck-picker span { white-space: nowrap; }
+    .deck-picker select {
+      width: min(320px, 32vw);
+      min-height: 36px;
+      padding: 6px 30px 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+    .budget-picker { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+    .budget-picker span { white-space: nowrap; }
+    .budget-input {
+      width: 72px;
+      min-height: 36px;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+      text-align: right;
+    }
+    button {
+      min-height: 36px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    button:hover { border-color: var(--green); color: var(--green); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #acd3c1; outline-offset: 2px; }
+    .icon-button { width: 38px; padding: 0; font-size: 20px; }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      width: max-content;
+      max-width: 100%;
+      margin-top: 20px;
+      padding: 4px;
+      overflow-x: auto;
+      border-radius: 7px;
+      background: #e7e9e4;
+    }
+    .tab { border: 0; background: transparent; color: var(--muted); padding: 8px 14px; }
+    .tab.active { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px rgba(28, 35, 27, .12); }
+    .tab-count { margin-left: 6px; color: var(--muted); font-size: 11px; }
+    .briefing {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
+      gap: 36px;
+      align-items: end;
+      margin-top: 20px;
+      padding: 28px 30px;
+      border-radius: 8px;
+      background: #1b211c;
+      color: #f9faf7;
+    }
+    .briefing > * { min-width: 0; }
+    .eyebrow { color: #aeb9ae; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    .briefing h2 { max-width: 760px; margin: 9px 0 14px; font-size: clamp(24px, 3vw, 38px); line-height: 1.22; overflow-wrap: anywhere; }
+    .next-action { display: flex; gap: 9px; align-items: flex-start; color: #d9ded8; font-size: 14px; line-height: 1.5; }
+    .next-action b { flex: 0 0 auto; color: #fff; }
+    .next-action span { min-width: 0; overflow-wrap: anywhere; }
+    .budget-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
+    .budget-head strong { font-size: 31px; }
+    .budget-head small, .budget-head span { color: #aeb9ae; font-size: 12px; }
+    .track { height: 7px; overflow: hidden; border-radius: 4px; background: #3e463f; }
+    .track > i { display: block; width: var(--w); height: 100%; border-radius: inherit; background: #e6b95f; }
+    .track.over > i { background: #e76f61; }
+    .budget-note { margin-top: 9px; color: #aeb9ae; font-size: 12px; }
+    .today-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-top: 14px;
+      padding: 15px 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .today-summary span { color: var(--muted); font-size: 12px; }
+    .today-summary strong { display: block; margin-top: 4px; font-size: 16px; }
+    .today-summary small { color: var(--muted); white-space: nowrap; }
+    .signals {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .signal { min-width: 0; padding: 18px 20px; border-right: 1px solid var(--line); }
+    .signal:last-child { border-right: 0; }
+    .signal-label { color: var(--muted); font-size: 12px; }
+    .signal-value { display: flex; gap: 7px; align-items: baseline; margin-top: 7px; }
+    .signal strong { font-size: 29px; line-height: 1; }
+    .signal small { color: var(--muted); }
+    .signal-status { margin-top: 8px; font-size: 12px; font-weight: 650; }
+    .tone-red { color: var(--red); }
+    .tone-amber { color: var(--amber); }
+    .tone-green { color: var(--green); }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+      margin-top: 30px;
+    }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+    .section-head h2 { margin: 0; font-size: 20px; }
+    .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .text-button { min-height: auto; padding: 5px; border: 0; background: transparent; color: var(--green); }
+    .priority-list { border-top: 1px solid var(--line-strong); }
+    .priority-row {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr) 128px;
+      gap: 12px;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .rank { align-self: start; padding-top: 2px; color: var(--muted); font-size: 13px; }
+    .card-title { font-size: 14px; line-height: 1.5; font-weight: 650; overflow-wrap: anywhere; }
+    .card-meta { margin-top: 5px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .attention-value { text-align: right; }
+    .attention-value strong { display: block; font-size: 18px; }
+    .attention-value span { color: var(--muted); font-size: 11px; }
+    .detail { margin-top: 28px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-bottom: 12px; }
+    .toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+    .toolbar h2 { margin: 0 0 4px; font-size: 22px; }
+    .toolbar p { margin: 0; color: var(--muted); font-size: 13px; }
+    .search { width: min(320px, 100%); padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); }
+    .filters { display: flex; gap: 3px; padding: 3px; border-radius: 6px; background: #e7e9e4; }
+    .filter { min-height: 30px; padding: 5px 9px; border: 0; background: transparent; color: var(--muted); }
+    .filter.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(28, 35, 27, .1); }
+    .table-shell { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; min-width: 1000px; border-collapse: collapse; }
+    th, td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { position: sticky; top: 0; z-index: 1; background: #f7f8f5; color: var(--muted); font-size: 11px; font-weight: 700; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #fafbf8; }
+    .question-cell { width: 38%; min-width: 330px; }
+    .question { font-size: 13px; font-weight: 650; line-height: 1.55; overflow-wrap: anywhere; }
+    .meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+    .chip { display: inline-block; padding: 3px 6px; border-radius: 4px; font-size: 10px; line-height: 1.2; }
+    .chip-neutral { color: #555b54; background: #edf0eb; }
+    .chip-warn { color: #774100; background: var(--amber-soft); }
+    .chip-stage { color: var(--blue); background: var(--blue-soft); }
+    .number-main { font-size: 14px; font-weight: 700; white-space: nowrap; }
+    .number-sub { margin-top: 5px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .action-text { max-width: 190px; color: var(--green); font-size: 12px; font-weight: 700; line-height: 1.45; }
+    .empty { padding: 48px 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); text-align: center; }
+    .error { margin-top: 20px; padding: 16px; border: 1px solid #e2aaa5; border-radius: 8px; background: var(--red-soft); color: var(--red); }
+    .loading { padding: 60px 0; color: var(--muted); text-align: center; }
+    @media (max-width: 900px) {
+      .wrap { padding: 18px 16px 44px; }
+      .briefing, .overview-grid { grid-template-columns: 1fr; }
+      .briefing { gap: 24px; padding: 24px 22px; }
+      .signals { grid-template-columns: repeat(2, 1fr); }
+      .signal:nth-child(2) { border-right: 0; }
+      .signal:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 620px) {
+      header { display: block; }
+      .subtitle { max-width: 330px; }
+      .header-tools {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 38px;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .sync-time { display: none; }
+      .deck-picker { grid-column: 1 / -1; min-width: 0; }
+      .deck-picker select { flex: 1; width: auto; min-width: 0; }
+      .budget-picker { grid-column: 1; }
+      .icon-button { grid-column: 2; grid-row: 2; }
+      .briefing { display: block; width: 100%; overflow: hidden; }
+      .briefing > div { width: 100%; max-width: 100%; overflow: hidden; }
+      .briefing > div + div { margin-top: 26px; }
+      .briefing h2 { max-width: 100%; font-size: 24px; word-break: break-all; }
+      .budget-head { gap: 12px; flex-wrap: wrap; }
+      .today-summary { display: block; }
+      .today-summary small { display: block; margin-top: 8px; }
+      .signal { padding: 15px; }
+      .signal strong { font-size: 25px; }
+      .priority-row { grid-template-columns: 25px minmax(0, 1fr); }
+      .attention-value { grid-column: 2; text-align: left; }
+      .toolbar, .toolbar-actions { display: block; }
+      .filters { width: max-content; margin-top: 12px; }
+      .search { width: 100%; margin-top: 12px; }
+      .table-shell { overflow: visible; border: 0; background: transparent; }
+      .table-scroll { overflow: visible; }
+      table, tbody { display: block; min-width: 0; }
+      thead { display: none; }
+      tr {
+        position: relative;
+        display: block;
+        margin-bottom: 10px;
+        padding: 13px 14px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--surface);
+      }
+      td, tr:last-child td { display: block; width: auto; min-width: 0; padding: 6px 0; border: 0; }
+      .question-cell { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+      td:not(.question-cell)::before {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--muted);
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 700;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <h1>Attention Is All You Need</h1>
+        <div class="subtitle">人的注意力有限，能制造的 Anki 卡片近乎无限；两者的矛盾，就是 Anki 系统的核心风险。</div>
+      </div>
+      <div class="header-tools">
+        <label class="deck-picker"><span>查看</span><select id="deck-select" onchange="setDeck(this.value)" aria-label="筛选牌组"></select></label>
+        <label class="budget-picker"><span>每日预算</span><input id="budget-input" class="budget-input" type="number" min="1" max="1440" step="5" inputmode="numeric" onchange="setBudget(this.value)" aria-label="每日复习预算，单位分钟"><span>分钟</span></label>
+        <div id="sync-time" class="sync-time"></div>
+        <button class="icon-button" onclick="load()" title="刷新数据" aria-label="刷新数据">↻</button>
+      </div>
+    </header>
+    <nav id="tabs" class="tabs" aria-label="看板视图"></nav>
+    <main id="app" class="loading">正在读取 Anki 数据...</main>
+  </div>
+  <script>
+    const app = document.getElementById("app");
+    const tabs = document.getElementById("tabs");
+    const deckSelect = document.getElementById("deck-select");
+    const budgetInput = document.getElementById("budget-input");
+    const syncTime = document.getElementById("sync-time");
+    let dashboard = null;
+    const pageParams = new URLSearchParams(location.search);
+    let activeView = ["overview", "attention", "quality"].includes(pageParams.get("view"))
+      ? pageParams.get("view") : "overview";
+    let searchText = pageParams.get("q") || "";
+    let detailMode = "all";
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    const fmtTimes = xs => xs && xs.length ? xs.map(x => `${x}s`).join(" · ") : "-";
+    const chips = (xs, tone = "neutral") => (xs || []).map(x => `<span class="chip chip-${tone}">${esc(x)}</span>`).join("");
+    const percent = (value, total) => Math.min(100, Math.round(value / Math.max(total, 1) * 100));
+    const compact = value => value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : value;
+
+    function viewRows() {
+      const source = activeView === "attention" ? dashboard.attention_holes
+        : dashboard.quality_cards;
+      const needle = searchText.trim().toLowerCase();
+      return source.filter(r => {
+        if (detailMode === "slow" && r.slow_count < 2) return false;
+        if (detailMode === "again" && r.again_count < 2) return false;
+        if (!needle) return true;
+        return [r.front, r.deck, r.action, ...(r.problems || []), ...(r.tags || [])].join(" ").toLowerCase().includes(needle);
+      });
+    }
+    function severityClass(metric, value) {
+      if (metric === "avg") return value >= 60 ? "tone-red" : value >= 40 ? "tone-amber" : "tone-green";
+      if (metric === "again") return value >= 25 ? "tone-red" : value >= 15 ? "tone-amber" : "tone-green";
+      return value > 0 ? "tone-amber" : "tone-green";
+    }
+    function renderTabs() {
+      const items = [
+        ["overview", "总览", ""],
+        ["attention", "注意力黑洞", dashboard.attention_holes.length],
+        ["quality", "卡片质量", dashboard.quality_cards.length],
+      ];
+      tabs.innerHTML = items.map(([id, label, count]) => `<button class="tab ${activeView === id ? "active" : ""}" onclick="setView('${id}')">${label}${count !== "" ? `<span class="tab-count">${count}</span>` : ""}</button>`).join("");
+    }
+    function renderDecks() {
+      const selected = dashboard.selected_deck || "";
+      deckSelect.innerHTML = [`<option value="">全部管理牌组</option>`, ...dashboard.decks.map(deck => `<option value="${esc(deck)}">${esc(deck)}</option>`)].join("");
+      deckSelect.value = selected;
+    }
+    function renderBudget() {
+      budgetInput.value = dashboard.balance.budget_minutes;
+    }
+    function detailFilters() {
+      if (activeView !== "attention") return "";
+      const items = [["all", "全部"], ["slow", "多次慢"], ["again", "多次 Again"]];
+      return `<div class="filters" aria-label="注意力黑洞筛选">${items.map(([id, label]) => `<button class="filter ${detailMode === id ? "active" : ""}" onclick="setDetailMode('${id}')">${label}</button>`).join("")}</div>`;
+    }
+    function topPriority(rows) {
+      return rows.slice(0, 5).map((r, index) => `<div class="priority-row">
+        <div class="rank">${String(index + 1).padStart(2, "0")}</div>
+        <div>
+          <div class="card-title">${esc(r.front)}</div>
+          <div class="card-meta">${esc(r.deck)} · 近几次 ${fmtTimes(r.last_times)}</div>
+        </div>
+        <div class="attention-value"><strong>${r.total_min_90} 分钟</strong><span>90 天 · 均时 ${r.avg_s}s</span></div>
+      </div>`).join("");
+    }
+    function detailTable(rows) {
+      if (!rows.length) return `<div class="empty">没有匹配的卡片</div>`;
+      return `<div class="table-shell"><div class="table-scroll"><table>
+        <thead><tr><th>卡片</th><th>长期消耗</th><th>检索表现</th><th>诊断</th><th>建议</th></tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <td class="question-cell">
+            <div class="question">${esc(r.front)}</div>
+            <div class="meta"><span class="chip chip-neutral">${esc(r.deck)}</span>${chips(r.tags)}</div>
+          </td>
+          <td data-label="长期消耗"><div class="number-main">${r.total_min_90} 分钟</div><div class="number-sub">90 天 · 30 天 ${r.total_min_30} 分钟</div></td>
+          <td data-label="检索表现"><div class="number-main">均时 ${r.avg_s}s</div><div class="number-sub">慢 ${r.slow_count} · Again ${r.again_count}</div><div class="number-sub">${fmtTimes(r.last_times)}</div></td>
+          <td data-label="诊断"><div class="meta">${chips(r.problems, r.problems.includes("图片卡：不可按空题干判断") ? "stage" : "warn") || '<span class="chip chip-neutral">待人工判断</span>'}</div></td>
+          <td data-label="建议"><div class="action-text">${esc(r.action)}</div></td>
+        </tr>`).join("")}</tbody>
+      </table></div></div>`;
+    }
+    function renderOverview() {
+      const d = dashboard;
+      const capacity = d.capacity;
+      const managedLabel = capacity.managed_decks.length
+        ? capacity.managed_decks.join("、")
+        : "全部牌组";
+      const simulatorReady = capacity.source === "fsrs_simulator";
+      const overloaded = capacity.headroom_minutes < 0;
+      const blocked = simulatorReady ? capacity.recommended_new === 0 : overloaded;
+      const decision = blocked
+        ? "本周暂停新增"
+        : simulatorReady
+          ? `本周建议新增 ${capacity.recommended_new} 张`
+          : "新增额度待 FSRS 模拟";
+      const decisionBasis = blocked
+        ? `已新增 ${capacity.added_new} 张 · 建议新增 0 张；先处理积压。`
+        : simulatorReady
+          ? `已新增 ${capacity.added_new} 张 · 建议上限 ${capacity.recommended_new} 张。`
+          : `已新增 ${capacity.added_new} 张；接入原生 Simulator 前不输出正额度。`;
+      const forecastProgress = percent(capacity.forecast_minutes, capacity.weekly_budget_minutes);
+      const forecastNote = overloaded
+        ? `超过预算 ${Math.abs(capacity.headroom_minutes)} 分钟`
+        : `尚余 ${capacity.headroom_minutes} 分钟，正额度仍需 FSRS 模拟`;
+      return `<section class="briefing">
+        <div>
+          <div class="eyebrow">本周注意力决策 · 管理范围 ${esc(managedLabel)}</div>
+          <h2>${decision}</h2>
+          <div class="next-action"><b>额度：</b><span>${decisionBasis}</span></div>
+        </div>
+        <div>
+          <div class="budget-head"><strong>${capacity.forecast_minutes}<small> / ${capacity.weekly_budget_minutes} 分钟</small></strong><span>${simulatorReady ? "FSRS 模拟" : "排程债务估算"} / 每周预算</span></div>
+          <div class="track ${overloaded ? "over" : ""}"><i style="--w:${forecastProgress}%"></i></div>
+          <div class="budget-note">${forecastNote}</div>
+        </div>
+      </section>
+      <section class="today-summary">
+        <div><span>今日结论</span><strong>${esc(d.conclusion)}</strong></div>
+        <small>已复习 ${d.today.reviews} 张 · ${d.today.minutes} 分钟${d.selected_deck ? ` · 当前牌组未来 7 天 ${capacity.scope_forecast_minutes} 分钟` : ""}</small>
+      </section>
+      <section class="signals" aria-label="今日关键信号">
+        <div class="signal"><div class="signal-label">单卡均时</div><div class="signal-value"><strong>${d.today.avg_s}</strong><small>秒</small></div><div class="signal-status ${severityClass("avg", d.today.avg_s)}">${d.today.avg_s >= 50 ? "检索偏重" : "可控"}</div></div>
+        <div class="signal"><div class="signal-label">60 秒以上</div><div class="signal-value"><strong>${d.today.slow_count}</strong><small>张</small></div><div class="signal-status ${severityClass("slow", d.today.slow_count)}">${d.today.slow_count ? "需要审计" : "无异常"}</div></div>
+        <div class="signal"><div class="signal-label">Again 率</div><div class="signal-value"><strong>${d.today.again_rate}</strong><small>%</small></div><div class="signal-status ${severityClass("again", d.today.again_rate)}">${d.today.again_rate >= 15 ? "提取不稳" : "稳定"}</div></div>
+        <div class="signal"><div class="signal-label">当前到期</div><div class="signal-value"><strong>${compact(d.balance.due)}</strong><small>张</small></div><div class="signal-status ${d.balance.due > 100 ? "tone-red" : "tone-green"}">${d.balance.due > 100 ? "队列积压" : "可控"}</div></div>
+      </section>
+      <section class="overview-grid">
+        <div>
+          <div class="section-head"><div><h2>先处理这 5 张</h2><p>按 90 天总耗时排序，先止住长期消耗。</p></div><button class="text-button" onclick="setView('attention')">查看全部 →</button></div>
+          <div class="priority-list">${topPriority(d.attention_holes)}</div>
+        </div>
+      </section>`;
+    }
+    function renderDetail() {
+      const config = {
+        attention: ["注意力黑洞", "长期总耗时高，不等于没价值；它表示最值得人工审计。"],
+        quality: ["卡片质量", "解释卡片为何不合理；规则只发现结构风险，不代替价值判断。"],
+      }[activeView];
+      return `<section class="detail">
+        <div class="toolbar">
+          <div><h2>${config[0]}</h2><p>${config[1]}</p></div>
+          <div class="toolbar-actions">
+            ${detailFilters()}
+            <input class="search" type="search" value="${esc(searchText)}" oninput="searchRows(this.value)" placeholder="搜索卡片、牌组、标签或诊断" aria-label="搜索卡片">
+          </div>
+        </div>
+        ${detailTable(viewRows())}
+      </section>`;
+    }
+    function render() {
+      renderTabs();
+      renderDecks();
+      renderBudget();
+      app.className = "";
+      app.innerHTML = activeView === "overview" ? renderOverview() : renderDetail();
+    }
+    function setView(view) {
+      activeView = view;
+      searchText = "";
+      detailMode = "all";
+      if (view === "overview") pageParams.delete("view");
+      else pageParams.set("view", view);
+      history.replaceState(null, "", `?${pageParams.toString()}`);
+      render();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    function setDetailMode(mode) {
+      detailMode = mode;
+      app.innerHTML = renderDetail();
+    }
+    function setDeck(deck) {
+      if (deck) pageParams.set("deck", deck);
+      else pageParams.delete("deck");
+      history.replaceState(null, "", `?${pageParams.toString()}`);
+      load();
+    }
+    function setBudget(value) {
+      const budget = Math.round(Number(value));
+      if (!Number.isFinite(budget) || budget < 1 || budget > 1440) {
+        budgetInput.value = dashboard.balance.budget_minutes;
+        return;
+      }
+      pageParams.set("budget", String(budget));
+      localStorage.setItem("attentionDailyBudgetMinutes", String(budget));
+      history.replaceState(null, "", `?${pageParams.toString()}`);
+      load();
+    }
+    function searchRows(value) {
+      searchText = value;
+      const tableHost = document.querySelector(".table-shell, .empty");
+      if (tableHost) tableHost.outerHTML = detailTable(viewRows());
+    }
+    async function load() {
+      app.className = "loading";
+      app.textContent = "正在读取 Anki 数据...";
+      try {
+        const api = new URL("/api/dashboard", location.origin);
+        const deck = pageParams.get("deck") || "";
+        const savedBudget = localStorage.getItem("attentionDailyBudgetMinutes") || "";
+        if (!pageParams.has("budget") && /^\d+$/.test(savedBudget)) {
+          pageParams.set("budget", savedBudget);
+          history.replaceState(null, "", `?${pageParams.toString()}`);
+        }
+        const budget = pageParams.get("budget") || "";
+        if (deck) api.searchParams.set("deck", deck);
+        if (budget) api.searchParams.set("budget", budget);
+        const res = await fetch(api);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "加载失败");
+        dashboard = data;
+        syncTime.textContent = `${data.generated_at.slice(11, 16)} 更新 · ${data.runtime_s}s`;
+        render();
+      } catch (error) {
+        app.className = "error";
+        app.textContent = error.message;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
