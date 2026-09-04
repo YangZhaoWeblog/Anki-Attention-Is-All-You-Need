@@ -38,3 +38,7 @@ python3 -m unittest discover -s tests -v
 ```
 
 The package is written to `dist/Attention-Is-All-You-Need.ankiaddon`.
+
+## License
+
+GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
