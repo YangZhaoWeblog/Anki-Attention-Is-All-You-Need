@@ -1,510 +1,1029 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Attention Is All You Need</title>
-  <style>
-    :root {
-      --bg: #f3f4f1;
-      --surface: #fff;
-      --ink: #151713;
-      --muted: #696e67;
-      --line: #dfe2dc;
-      --line-strong: #bfc5bb;
-      --green: #176b4d;
-      --amber: #9a5b08;
-      --amber-soft: #fff1d6;
-      --red: #a43b31;
-      --red-soft: #f8e7e4;
-      --blue: #285c8e;
-      --blue-soft: #e8f0f7;
-    }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      letter-spacing: 0;
-      font-variant-numeric: tabular-nums;
-    }
-    button, input, select { font: inherit; }
-    button { cursor: pointer; }
-    .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 28px 64px; }
-    header {
-      display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      align-items: center;
-      padding-bottom: 22px;
-      border-bottom: 1px solid var(--line-strong);
-    }
-    .brand { min-width: 0; }
-    h1 { margin: 0; font-size: clamp(25px, 3vw, 38px); line-height: 1.08; font-weight: 780; }
-    .subtitle { margin-top: 7px; color: var(--muted); font-size: 14px; line-height: 1.55; }
-    .header-tools { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
-    .sync-time { color: var(--muted); font-size: 12px; text-align: right; }
-    .deck-picker { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
-    .deck-picker span { white-space: nowrap; }
-    .deck-picker select {
-      width: min(320px, 32vw);
-      min-height: 36px;
-      padding: 6px 30px 6px 9px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: var(--surface);
-      color: var(--ink);
-    }
-    .budget-picker { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
-    .budget-picker span { white-space: nowrap; }
-    .budget-input {
-      width: 72px;
-      min-height: 36px;
-      padding: 6px 8px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: var(--surface);
-      color: var(--ink);
-      text-align: right;
-    }
-    button {
-      min-height: 36px;
-      padding: 7px 11px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: var(--surface);
-      color: var(--ink);
-      font-size: 13px;
-      white-space: nowrap;
-    }
-    button:hover { border-color: var(--green); color: var(--green); }
-    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #acd3c1; outline-offset: 2px; }
-    .icon-button { width: 38px; padding: 0; font-size: 20px; }
-    .tabs {
-      display: flex;
-      gap: 4px;
-      width: max-content;
-      max-width: 100%;
-      margin-top: 20px;
-      padding: 4px;
-      overflow-x: auto;
-      border-radius: 7px;
-      background: #e7e9e4;
-    }
-    .tab { border: 0; background: transparent; color: var(--muted); padding: 8px 14px; }
-    .tab.active { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px rgba(28, 35, 27, .12); }
-    .tab-count { margin-left: 6px; color: var(--muted); font-size: 11px; }
-    .briefing {
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
-      gap: 36px;
-      align-items: end;
-      margin-top: 20px;
-      padding: 28px 30px;
-      border-radius: 8px;
-      background: #1b211c;
-      color: #f9faf7;
-    }
-    .briefing > * { min-width: 0; }
-    .eyebrow { color: #aeb9ae; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-    .briefing h2 { max-width: 760px; margin: 9px 0 14px; font-size: clamp(24px, 3vw, 38px); line-height: 1.22; overflow-wrap: anywhere; }
-    .next-action { display: flex; gap: 9px; align-items: flex-start; color: #d9ded8; font-size: 14px; line-height: 1.5; }
-    .next-action b { flex: 0 0 auto; color: #fff; }
-    .next-action span { min-width: 0; overflow-wrap: anywhere; }
-    .budget-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
-    .budget-head strong { font-size: 31px; }
-    .budget-head small, .budget-head span { color: #aeb9ae; font-size: 12px; }
-    .track { height: 7px; overflow: hidden; border-radius: 4px; background: #3e463f; }
-    .track > i { display: block; width: var(--w); height: 100%; border-radius: inherit; background: #e6b95f; }
-    .track.over > i { background: #e76f61; }
-    .budget-note { margin-top: 9px; color: #aeb9ae; font-size: 12px; }
-    .today-summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      margin-top: 14px;
-      padding: 15px 18px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--surface);
-    }
-    .today-summary span { color: var(--muted); font-size: 12px; }
-    .today-summary strong { display: block; margin-top: 4px; font-size: 16px; }
-    .today-summary small { color: var(--muted); white-space: nowrap; }
-    .signals {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      margin-top: 14px;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--surface);
-    }
-    .signal { min-width: 0; padding: 18px 20px; border-right: 1px solid var(--line); }
-    .signal:last-child { border-right: 0; }
-    .signal-label { color: var(--muted); font-size: 12px; }
-    .signal-value { display: flex; gap: 7px; align-items: baseline; margin-top: 7px; }
-    .signal strong { font-size: 29px; line-height: 1; }
-    .signal small { color: var(--muted); }
-    .signal-status { margin-top: 8px; font-size: 12px; font-weight: 650; }
-    .tone-red { color: var(--red); }
-    .tone-amber { color: var(--amber); }
-    .tone-green { color: var(--green); }
-    .overview-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 28px;
-      align-items: start;
-      margin-top: 30px;
-    }
-    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
-    .section-head h2 { margin: 0; font-size: 20px; }
-    .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
-    .text-button { min-height: auto; padding: 5px; border: 0; background: transparent; color: var(--green); }
-    .priority-list { border-top: 1px solid var(--line-strong); }
-    .priority-row {
-      display: grid;
-      grid-template-columns: 32px minmax(0, 1fr) 128px;
-      gap: 12px;
-      align-items: center;
-      padding: 15px 0;
-      border-bottom: 1px solid var(--line);
-    }
-    .rank { align-self: start; padding-top: 2px; color: var(--muted); font-size: 13px; }
-    .card-title { font-size: 14px; line-height: 1.5; font-weight: 650; overflow-wrap: anywhere; }
-    .card-meta { margin-top: 5px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-    .attention-value { text-align: right; }
-    .attention-value strong { display: block; font-size: 18px; }
-    .attention-value span { color: var(--muted); font-size: 11px; }
-    .detail { margin-top: 28px; }
-    .toolbar { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-bottom: 12px; }
-    .toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-    .toolbar h2 { margin: 0 0 4px; font-size: 22px; }
-    .toolbar p { margin: 0; color: var(--muted); font-size: 13px; }
-    .search { width: min(320px, 100%); padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); }
-    .filters { display: flex; gap: 3px; padding: 3px; border-radius: 6px; background: #e7e9e4; }
-    .filter { min-height: 30px; padding: 5px 9px; border: 0; background: transparent; color: var(--muted); }
-    .filter.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(28, 35, 27, .1); }
-    .table-shell { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-    .table-scroll { overflow-x: auto; }
-    table { width: 100%; min-width: 1000px; border-collapse: collapse; }
-    th, td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
-    th { position: sticky; top: 0; z-index: 1; background: #f7f8f5; color: var(--muted); font-size: 11px; font-weight: 700; }
-    tr:last-child td { border-bottom: 0; }
-    tbody tr:hover { background: #fafbf8; }
-    .question-cell { width: 38%; min-width: 330px; }
-    .question { font-size: 13px; font-weight: 650; line-height: 1.55; overflow-wrap: anywhere; }
-    .meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
-    .chip { display: inline-block; padding: 3px 6px; border-radius: 4px; font-size: 10px; line-height: 1.2; }
-    .chip-neutral { color: #555b54; background: #edf0eb; }
-    .chip-warn { color: #774100; background: var(--amber-soft); }
-    .chip-stage { color: var(--blue); background: var(--blue-soft); }
-    .number-main { font-size: 14px; font-weight: 700; white-space: nowrap; }
-    .number-sub { margin-top: 5px; color: var(--muted); font-size: 10px; white-space: nowrap; }
-    .action-text { max-width: 190px; color: var(--green); font-size: 12px; font-weight: 700; line-height: 1.45; }
-    .empty { padding: 48px 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); text-align: center; }
-    .error { margin-top: 20px; padding: 16px; border: 1px solid #e2aaa5; border-radius: 8px; background: var(--red-soft); color: var(--red); }
-    .loading { padding: 60px 0; color: var(--muted); text-align: center; }
-    @media (max-width: 900px) {
-      .wrap { padding: 18px 16px 44px; }
-      .briefing, .overview-grid { grid-template-columns: 1fr; }
-      .briefing { gap: 24px; padding: 24px 22px; }
-      .signals { grid-template-columns: repeat(2, 1fr); }
-      .signal:nth-child(2) { border-right: 0; }
-      .signal:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
-    }
-    @media (max-width: 620px) {
-      header { display: block; }
-      .subtitle { max-width: 330px; }
-      .header-tools {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 38px;
-        gap: 10px;
-        margin-top: 14px;
-      }
-      .sync-time { display: none; }
-      .deck-picker { grid-column: 1 / -1; min-width: 0; }
-      .deck-picker select { flex: 1; width: auto; min-width: 0; }
-      .budget-picker { grid-column: 1; }
-      .icon-button { grid-column: 2; grid-row: 2; }
-      .briefing { display: block; width: 100%; overflow: hidden; }
-      .briefing > div { width: 100%; max-width: 100%; overflow: hidden; }
-      .briefing > div + div { margin-top: 26px; }
-      .briefing h2 { max-width: 100%; font-size: 24px; word-break: break-all; }
-      .budget-head { gap: 12px; flex-wrap: wrap; }
-      .today-summary { display: block; }
-      .today-summary small { display: block; margin-top: 8px; }
-      .signal { padding: 15px; }
-      .signal strong { font-size: 25px; }
-      .priority-row { grid-template-columns: 25px minmax(0, 1fr); }
-      .attention-value { grid-column: 2; text-align: left; }
-      .toolbar, .toolbar-actions { display: block; }
-      .filters { width: max-content; margin-top: 12px; }
-      .search { width: 100%; margin-top: 12px; }
-      .table-shell { overflow: visible; border: 0; background: transparent; }
-      .table-scroll { overflow: visible; }
-      table, tbody { display: block; min-width: 0; }
-      thead { display: none; }
-      tr {
-        position: relative;
-        display: block;
-        margin-bottom: 10px;
-        padding: 13px 14px;
-        border: 1px solid var(--line);
-        border-radius: 7px;
-        background: var(--surface);
-      }
-      td, tr:last-child td { display: block; width: auto; min-width: 0; padding: 6px 0; border: 0; }
-      .question-cell { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
-      td:not(.question-cell)::before {
-        display: block;
-        margin-bottom: 3px;
-        color: var(--muted);
-        content: attr(data-label);
-        font-size: 10px;
-        font-weight: 700;
-      }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attention Is All You Need</title>
+<style>
+:root{color-scheme:light;--bg:#fdfdff;--paper:#fff;--ink:#191922;--muted:#6a6a7b;--line:#e8e6ef;--purple:#6333ed;--soft:#f7f3ff;--danger:#b63f50;--shadow:0 12px 30px #4427720c}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#fff 0,#fdfdff 650px);color:var(--ink);font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer;color:inherit}button:disabled{cursor:default;opacity:.5}[hidden]{display:none!important}h1,h2,h3,p{margin:0}h1{font-size:32px;letter-spacing:-.7px}h2{font-size:20px}small,.muted{color:var(--muted)}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #a389ee;outline-offset:3px}
+.app{max-width:1120px;margin:auto;padding:0 36px 60px}.app-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 0;border-bottom:1px solid var(--line)}.wordmark{display:flex;align-items:center;gap:10px}.mark{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;color:#fff;font:italic 27px Georgia,serif;background:radial-gradient(ellipse at 0 0,#edaef0,transparent 68%),linear-gradient(145deg,#ab9efc,#6635ef 68%,#4a26d5)}.brand{font-size:16px;font-weight:650}.header-nav{display:flex;gap:22px}.header-nav button{padding:6px 0;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted)}.header-nav button.active{border-color:var(--purple);color:var(--ink);font-weight:600}
+.scope-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:26px 0 22px}.settings{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.settings label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px}.settings select,.settings input{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px;min-height:36px}.settings select{max-width:190px}.settings input{width:64px;text-align:center}.btn{border:1px solid var(--line);background:var(--paper);padding:9px 14px;border-radius:10px;white-space:nowrap}.btn:hover{background:#f8f7fc}.btn.primary{background:linear-gradient(115deg,#6938f5,#6130eb);border-color:#6633ee;color:#fff}.btn.quiet{border-color:transparent;background:transparent;color:var(--purple)}.btn.danger{color:var(--danger)}.loading,.empty,.error{padding:34px 18px;text-align:center;border:1px dashed var(--line);border-radius:12px;color:var(--muted)}.error{color:var(--danger);background:#fff5f6;border-color:#f0cdd2}
+.briefing{display:grid;grid-template-columns:1.03fr 1fr;background:var(--paper);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}.budget-ticket{min-height:285px;padding:30px;background:radial-gradient(ellipse at -8% 110%,#9990ffaf 0,#b7adff42 28%,transparent 59%),radial-gradient(ellipse at 104% 110%,#f7bce999 0,#fce3ef65 30%,transparent 60%),linear-gradient(128deg,#efedfc,#faf9ff 48%,#fff8fc)}.kicker{text-transform:uppercase;letter-spacing:1px;font-size:11px;color:#4b465e}.big-amount{display:flex;align-items:baseline;gap:9px;margin:19px 0 22px}.big-amount b{font:650 76px/.97 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-4px}.ticket-bottom{display:flex;gap:38px;padding-top:15px;border-top:1px solid #65537b20}.ticket-bottom small{display:block}.ticket-bottom strong{font-size:19px}.recommendation{padding:30px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.recommendation h2{font-size:26px;line-height:1.35;margin:10px 0}.recommendation p{color:var(--muted);max-width:330px}.recommendation .btn{margin-top:22px}.today-line{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;padding:14px 2px;color:var(--muted);font-size:12px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:30px 0 14px}.card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.candidate{border:1px solid var(--line);border-radius:17px;background:var(--paper);text-align:left;padding:0;overflow:hidden;box-shadow:0 5px 15px #34244b07}.candidate:hover{border-color:#cbbced;transform:translateY(-2px)}.tile-art{height:112px;display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#fafaff,#fff 76%);border-bottom:1px solid #f0eef5;overflow:hidden}.tile-art img{max-width:100%;max-height:100%;object-fit:contain}.tile-art.text-preview{align-items:stretch;justify-content:stretch;padding:12px;background:linear-gradient(130deg,#ff3f7f14,transparent 45%),linear-gradient(35deg,#7b3ff217,transparent 55%),#fffdfc}.text-cover{display:grid;align-content:space-between;gap:8px;width:100%;padding:11px;border:1px solid #775aa821;border-radius:12px;background:#ffffffbf;box-shadow:inset 0 1px 0 #fff,0 14px 28px #382a5912}.text-cover strong{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.35}.text-cover small{color:#837b91;font-size:10px;font-weight:650}.fallback-cover{position:relative;isolation:isolate;background:radial-gradient(circle at 28% 22%,#ff3f7f2e,transparent 30%),radial-gradient(circle at 72% 62%,#7b3ff229,transparent 34%),linear-gradient(145deg,#fffefd 0%,#faf5ff 58%,#fff9fb 100%)}.fallback-cover:before{content:"";position:absolute;inset:0;opacity:.22;background-image:linear-gradient(#56437829 1px,transparent 1px),linear-gradient(90deg,#5643781f 1px,transparent 1px);background-size:18px 18px;mask-image:linear-gradient(135deg,transparent 0%,#000 22%,#000 70%,transparent 100%)}.fallback-cover:after{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,#2e234d1f 1px,transparent 1px);background-size:13px 13px;opacity:.18;mix-blend-mode:multiply}.stack-symbol{position:relative;z-index:1;width:92px;height:76px}.stack-symbol i{position:absolute;width:66px;height:48px;border-radius:13px;border:1.5px solid #51349757;background:#ffffff7a;box-shadow:0 14px 34px #5b37a01f}.stack-symbol i:nth-child(1){left:4px;top:18px;transform:rotate(-9deg)}.stack-symbol i:nth-child(2){left:18px;top:10px;transform:rotate(4deg);border-color:#ff3f7f6b}.stack-symbol i:nth-child(3){left:28px;top:22px;border-color:#7b3ff280;background:linear-gradient(135deg,#ffffffc2,#ffffff4d)}.detail-cover{height:156px;border-bottom:1px solid var(--line)}.tile-body{padding:16px}.tile-body h3{height:67px;overflow:hidden;font-size:14px}.reason{color:#746580;font-size:12px;min-height:38px}.tile-meta{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.tile-meta strong{font-size:18px}
+.inspection-heading{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 0 12px;padding:12px 0;background:#fdfdfff2;backdrop-filter:blur(12px)}.filter-group,.signal-options{display:flex;gap:4px;flex-wrap:wrap}.filter-group button,.signal-options button{border:0;background:transparent;color:var(--muted);font-size:12px;padding:7px 11px;border-radius:7px}.filter-group button.active,.signal-options button.active{background:var(--paper);box-shadow:0 1px 4px #3c2c5010;color:#5129be}.filter-group{background:#f2eff8;padding:4px;border-radius:10px}.filter-count{font-size:11px;color:var(--muted);white-space:nowrap}.inspection{display:grid;grid-template-columns:255px minmax(0,1fr);gap:30px;align-items:start}.inspection.collapsed{grid-template-columns:1fr;max-width:870px;margin:auto}.inspection-list{position:sticky;top:72px;max-height:calc(100vh - 92px);overflow-y:auto;padding-right:5px;background:transparent;scrollbar-width:thin}.mini-card{display:block;width:100%;padding:15px;margin-bottom:5px;border:0;border-radius:12px;background:transparent;text-align:left}.mini-card h3{font-size:13px;font-weight:400;color:#71697b;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.mini-card.selected{background:var(--soft);box-shadow:inset 3px 0 #9275e6}.mini-card.selected h3{font-weight:600;color:#33263f}.mini-meta{font-size:11px;color:var(--muted);margin-top:8px}.workspace{position:relative}.list-toggle{display:flex;align-items:center;gap:5px;margin:0 0 8px;border:0;background:transparent;color:var(--purple);padding:5px}.detail-shell{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:10px;align-items:stretch}.nav-rail{position:relative}.nav-arrow{position:sticky;top:50vh;display:grid;place-items:center;width:42px;height:42px;transform:translateY(-50%);border:1px solid #e6def0;border-radius:50%;background:#ffffffdb;color:var(--purple);opacity:.58}.nav-arrow:hover,.nav-arrow:focus-visible{opacity:1;background:linear-gradient(135deg,#fff,#f2e9ff)}.detail{min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 7px 22px #39265108}.detail-head,.detail-body,.detail-actions{padding:19px 24px}.detail-head{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}.pill{display:inline-flex;margin:2px;padding:3px 7px;border-radius:5px;font-size:11px;background:#f4f2f7;color:#625a70}.detail-fallback-title{margin:14px 0 10px;font-size:18px;line-height:1.38}.rendered-card{width:100%;min-height:150px;border:0}.answer{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}.answer summary{color:var(--purple);cursor:pointer}.evidence{display:flex;gap:22px;flex-wrap:wrap;padding:16px 24px;background:#faf9fc;border-top:1px solid var(--line)}.evidence strong{display:block}.review-events{font-size:12px;line-height:1.7}.detail-actions{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line)}.process-menu{position:relative}.process-menu>summary{list-style:none}.process-menu>summary::-webkit-details-marker{display:none}.process-popover{position:absolute;left:0;bottom:calc(100% + 8px);z-index:30;width:310px;max-width:calc(100vw - 32px);padding:8px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 18px 45px #31204420}.menu-heading{padding:7px 10px 3px;color:var(--muted);font-size:10px;letter-spacing:.7px}.menu-action{display:block;width:100%;padding:9px 10px;border:0;border-radius:9px;background:transparent;text-align:left}.menu-action:hover{background:var(--soft)}.menu-action small{display:block;color:var(--muted);font-size:11px}.menu-divider{height:1px;margin:6px;background:var(--line)}
+.editing label{display:block;margin-bottom:15px;color:var(--muted);font-size:12px}.editing textarea,.editing input{display:block;width:100%;margin-top:7px;padding:12px;border:1px solid var(--line);border-radius:7px;resize:vertical}.editing textarea{min-height:100px}.editor-buttons{display:flex;gap:9px}.message{margin-bottom:12px;padding:12px 16px;border-radius:12px;background:#f5f0fc;color:#654c86}.dialog{width:440px;max-width:calc(100vw - 32px);padding:28px;border:1px solid #ede5ed;border-radius:22px;box-shadow:0 24px 80px #271b3633}.dialog::backdrop{background:#21172f40}.dialog p{margin-top:12px;color:var(--muted)}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:22px}.footer-note{margin-top:18px;color:var(--muted);font-size:11px}
+@media(max-width:760px){.app{padding:0 16px 40px}.app-header,.scope-row{align-items:flex-start;flex-wrap:wrap}.briefing{grid-template-columns:1fr}.card-grid{grid-template-columns:1fr}.inspection-heading{align-items:flex-start;flex-wrap:wrap}.inspection{display:block}.inspection-list{position:static;display:flex;max-height:none;overflow:auto;margin-bottom:17px}.mini-card{min-width:210px}.detail-shell{grid-template-columns:1fr 1fr}.detail{grid-column:1/-1;grid-row:2}.nav-rail{position:static;grid-row:1}.nav-rail.next{display:flex;justify-content:flex-end}.nav-arrow{position:static;transform:none}.big-amount b{font-size:68px}}
+.inspection-heading{flex-wrap:wrap}.sort-label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.sort-label select{padding:6px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.inspection.collapsed{max-width:760px}.detail-shell{display:block;margin:0 22px}.nav-rail{position:static}.nav-arrow{position:fixed;z-index:16;transform:none;opacity:0;pointer-events:none;transition:opacity .16s,background .16s}.detail-shell:hover .nav-arrow,.nav-arrow:focus-visible{opacity:1;pointer-events:auto}.nav-arrow:disabled{pointer-events:none}.detail-shell:hover .nav-arrow:disabled{opacity:.28}
+.list-toggle{width:28px;height:28px;padding:4px}.action-icon{width:19px;height:19px;flex:none}.list-toggle.is-handle{position:fixed;z-index:17;width:22px;height:56px;margin:0;padding:0;border:0;background:transparent}.list-toggle.is-handle::before{content:'';position:absolute;right:3px;top:50%;width:2px;height:28px;border-radius:2px;transform:translateY(-50%);background:#9986ad;transition:height .18s,box-shadow .18s}.list-toggle.is-handle .action-icon{width:14px;height:14px;opacity:0;transform:translateX(3px);transition:opacity .16s,transform .18s}.list-toggle.is-handle:hover::before,.list-toggle.is-handle:focus-visible::before{height:40px;background:linear-gradient(#b495ee,#7951c5,#c78bb9);box-shadow:0 0 10px #a680de40}.list-toggle.is-handle:hover .action-icon,.list-toggle.is-handle:focus-visible .action-icon{opacity:1;transform:none}
+.process-popover{position:fixed;z-index:40;bottom:auto;max-height:calc(100vh - 24px);overflow:auto}.menu-action{display:flex;align-items:flex-start;gap:10px}.menu-action .action-icon{margin-top:2px;color:#8a7a9a}.menu-action strong,.menu-action small{display:block}.detail.card-enter{animation:card-enter .16s ease-out}.detail-deck{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}
+@keyframes card-enter{from{opacity:.65}to{opacity:1}}
+@media(max-width:760px){.detail-shell{margin:0 16px}.nav-arrow{position:fixed}.process-popover{max-width:calc(100vw - 24px)}}
+@media(hover:none),(pointer:coarse){.nav-arrow{opacity:1;pointer-events:auto}.list-toggle.is-handle .action-icon{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
 </head>
-<body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <h1>Attention Is All You Need</h1>
-        <div class="subtitle">人的注意力有限，能制造的 Anki 卡片近乎无限；两者的矛盾，就是 Anki 系统的核心风险。</div>
-      </div>
-      <div class="header-tools">
-        <label class="deck-picker"><span>查看</span><select id="deck-select" onchange="setDeck(this.value)" aria-label="筛选牌组"></select></label>
-        <label class="budget-picker"><span>每日预算</span><input id="budget-input" class="budget-input" type="number" min="1" max="1440" step="5" inputmode="numeric" onchange="setBudget(this.value)" aria-label="每日复习预算，单位分钟"><span>分钟</span></label>
-        <div id="sync-time" class="sync-time"></div>
-        <button class="icon-button" onclick="load()" title="刷新数据" aria-label="刷新数据">↻</button>
-      </div>
-    </header>
-    <nav id="tabs" class="tabs" aria-label="看板视图"></nav>
-    <main id="app" class="loading">正在读取 Anki 数据...</main>
-  </div>
-  <script>
-    const app = document.getElementById("app");
-    const tabs = document.getElementById("tabs");
-    const deckSelect = document.getElementById("deck-select");
-    const budgetInput = document.getElementById("budget-input");
-    const syncTime = document.getElementById("sync-time");
-    let dashboard = null;
-    const pageParams = new URLSearchParams(location.search);
-    let activeView = ["overview", "attention", "quality"].includes(pageParams.get("view"))
-      ? pageParams.get("view") : "overview";
-    let searchText = pageParams.get("q") || "";
-    let detailMode = "all";
-    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-    const fmtTimes = xs => xs && xs.length ? xs.map(x => `${x}s`).join(" · ") : "-";
-    const chips = (xs, tone = "neutral") => (xs || []).map(x => `<span class="chip chip-${tone}">${esc(x)}</span>`).join("");
-    const percent = (value, total) => Math.min(100, Math.round(value / Math.max(total, 1) * 100));
-    const compact = value => value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : value;
+<body><main id="app" class="app"><div class="loading">正在连接 Anki…</div></main>
+<script>
+const root = document.getElementById("app");
+const state = {
+  view: "overview",
+  init: null,
+  dashboard: null,
+  queue: "review",
+  filter: "all",
+  sort: "recent",
+  selected: null,
+  detail: null,
+  editing: false,
+  draft: null,
+  message: "",
+  collapsed: readCollapsed(),
+  answerOpen: false,
+  confirmedDelete: null,
+  busy: false,
+  settingsBusy: false,
+  preparingDelete: false,
+};
+const pending = new Map();
+let requestSeq = 0;
+let generation = 0;
+let detailRequestSeq = 0;
+let pendingAction = null;
+let pendingSettings = null;
+let layoutFrame = 0;
+let contentObservers = [];
+let cardFrameResizers = [];
 
-    function viewRows() {
-      const source = activeView === "attention" ? dashboard.attention_holes
-        : dashboard.quality_cards;
-      const needle = searchText.trim().toLowerCase();
-      return source.filter(r => {
-        if (detailMode === "slow" && r.slow_count < 2) return false;
-        if (detailMode === "again" && r.again_count < 2) return false;
-        if (!needle) return true;
-        return [r.front, r.deck, r.action, ...(r.problems || []), ...(r.tags || [])].join(" ").toLowerCase().includes(needle);
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, function (char) {
+    return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[char];
+  });
+}
+
+function readCollapsed() {
+  try {
+    return localStorage.getItem("attention.listCollapsed") === "1";
+  } catch (_) {
+    return false;
+  }
+}
+
+function send(command, params, requestGeneration) {
+  params = params || {};
+  requestGeneration = requestGeneration ?? generation;
+  return new Promise(function (resolve, reject) {
+    const requestId = String(++requestSeq);
+    pending.set(requestId, {resolve: resolve, reject: reject, generation: requestGeneration});
+    try {
+      pycmd("attention:" + JSON.stringify({
+        command: command,
+        requestId: requestId,
+        generation: requestGeneration,
+        params: params,
+      }));
+    } catch (error) {
+      pending.delete(requestId);
+      reject(error);
+    }
+  });
+}
+
+window.__attentionResponse = function (message) {
+  const item = pending.get(message.requestId);
+  if (!item) return;
+  pending.delete(message.requestId);
+  if (message.generation !== item.generation) {
+    item.reject(new Error("请求已失效"));
+    return;
+  }
+  if (message.error) {
+    const error = new Error(message.error.message);
+    error.code = message.error.code;
+    item.reject(error);
+  } else {
+    item.resolve(message.result);
+  }
+};
+
+function bridgeReady(callback, attempts) {
+  attempts = attempts || 0;
+  if (typeof pycmd !== "undefined") {
+    callback();
+  } else if (attempts < 200) {
+    setTimeout(function () { bridgeReady(callback, attempts + 1); }, 50);
+  } else {
+    showFatal("Anki bridge 未就绪，请重启 Anki。");
+  }
+}
+
+async function initialize() {
+  try {
+    state.init = await send("initialize");
+    render();
+    if (!state.init.selectionRequired) await loadDashboard();
+  } catch (error) {
+    showFatal(error.message);
+  }
+}
+
+function showFatal(message) {
+  root.innerHTML = '<div class="error">' + esc(message) + "</div>";
+}
+
+function allRows() {
+  if (!state.dashboard) return [];
+  return state.queue === "optimization"
+    ? state.dashboard.optimization_queue
+    : state.dashboard.review_queue;
+}
+
+function currentRows() {
+  let rows = allRows();
+  if (state.queue === 'review') {
+    if (state.filter === "slow") rows = rows.filter(function (row) { return row.slow_count >= 2; });
+    if (state.filter === "again") rows = rows.filter(function (row) { return row.again_count >= 3 || (row.again_count >= 2 && row.again_day_count >= 2); });
+    if (state.filter === "quality") rows = rows.filter(function (row) { return row.problems.length > 0; });
+  }
+  const score = row => state.sort === "slow" ? row.slow_count :
+    state.sort === "again" ? row.again_count : row.total_min_30;
+  return rows.slice().sort((a, b) => score(b) - score(a) || b.slow_count - a.slow_count ||
+    b.total_min_30 - a.total_min_30 || a.cardId - b.cardId);
+}
+
+async function loadDashboard(options) {
+  options = options || {};
+  if (!state.init || state.init.selectionRequired) return false;
+  if (state.editing && !options.afterSave) {
+    requestChange(function () { loadDashboard(options); });
+    return;
+  }
+  const requestGeneration = ++generation;
+  const preferredCardId = options.preferredCardId ?? state.selected;
+  const fallbackCardId = options.fallbackCardId ?? null;
+  detailRequestSeq += 1;
+  state.busy = true;
+  render();
+  try {
+    const data = await send("loadDashboard", {
+      deckId: state.init.selectedDeckId,
+      dailyBudgetMinutes: state.init.dailyBudgetMinutes,
+    }, requestGeneration);
+    if (requestGeneration !== generation) return;
+    state.dashboard = data;
+    const rows = currentRows();
+    if (rows.some(function (row) { return row.cardId === preferredCardId; })) {
+      state.selected = preferredCardId;
+    } else if (rows.some(function (row) { return row.cardId === fallbackCardId; })) {
+      state.selected = fallbackCardId;
+    } else {
+      state.selected = rows[0] ? rows[0].cardId : null;
+    }
+    state.detail = null;
+    state.busy = false;
+    render();
+    if (state.view === "cards" && state.selected !== null) {
+      await loadCard(state.selected, {force: true});
+    }
+    applyPendingSettings();
+    return true;
+  } catch (error) {
+    if (requestGeneration !== generation) return;
+    state.busy = false;
+    state.message = "刷新失败：" + error.message;
+    render();
+    return false;
+  }
+}
+
+async function loadCard(cardId, options) {
+  options = options || {};
+  if (state.editing) {
+    requestChange(function () { loadCard(cardId); });
+    return;
+  }
+  const sequence = ++detailRequestSeq;
+  const requestGeneration = generation;
+  if (state.selected !== cardId) state.answerOpen = false;
+  state.selected = cardId;
+  state.detail = null;
+  render();
+  try {
+    const detail = await send("loadCard", {cardId: cardId}, requestGeneration);
+    if (sequence !== detailRequestSeq || requestGeneration !== generation || state.selected !== cardId) return;
+    state.detail = detail;
+    render();
+    if (options.reveal) {
+      const card = root.querySelector('.detail');
+      card?.classList.add('card-enter');
+      if (card && card.getBoundingClientRect().top < 80) card.scrollIntoView({block: 'start'});
+      queueLayout();
+    }
+  } catch (error) {
+    if (sequence !== detailRequestSeq || requestGeneration !== generation || state.selected !== cardId) return;
+    state.message = "卡片读取失败：" + error.message;
+    render();
+  }
+}
+
+function header() {
+  return '<header class="app-header">' +
+    '<div class="wordmark"><span class="mark">A</span><span class="brand">Attention Is All You Need</span></div>' +
+    '<nav class="header-nav">' +
+    '<button data-view="overview" class="' + (state.view === "overview" ? "active" : "") + '">总览</button>' +
+    '<button data-view="cards" class="' + (state.view === "cards" ? "active" : "") + '">卡片检查</button>' +
+    "</nav></header>";
+}
+
+function scope() {
+  const init = state.init;
+  const refs = init ? init.deckRefs : [];
+  const disabled = state.settingsBusy || state.busy || state.preparingDelete ? "disabled" : "";
+  return '<section class="scope-row"><div><div class="kicker">ATTENTION BUDGET</div><h1>' +
+    (state.view === "overview" ? "注意力看板" : "一次完成一个取舍") +
+    '</h1></div><div class="settings"><label>牌组<select id="scope" ' + disabled + ">" +
+    (init.selectionRequired ? '<option value="" selected>请选择牌组</option>' : "") +
+    refs.map(function (ref) {
+      return '<option value="' + ref.deckId + '" ' + (ref.deckId === init.selectedDeckId ? "selected" : "") + ">" +
+        esc(ref.name) + (ref.descendantCount ? "（含 " + ref.descendantCount + " 个子牌组）" : "") + "</option>";
+    }).join("") +
+    '</select></label><label>每日预算<input id="budget" type="number" min="1" max="1440" value="' +
+    esc(init.dailyBudgetMinutes || 30) + '" ' + disabled + '> 分钟</label>' +
+    '<button class="btn quiet" id="refresh" ' + disabled + ">刷新</button></div></section>";
+}
+
+function overview() {
+  const data = state.dashboard;
+  if (!data) return state.busy ? '<div class="loading">正在计算真实 Anki 数据…</div>' : '<div class="empty">暂无数据</div>';
+  const capacity = data.capacity;
+  const rows = data.review_queue.slice(0, 6);
+  return '<section class="briefing"><div class="budget-ticket"><div class="kicker">未来 7 天 · ' +
+    esc(data.selected_deck) + '</div><small>' + esc(capacity.periodStart || '') + ' — ' +
+    esc(capacity.periodEnd || '') + '</small><div class="big-amount"><b>' + capacity.forecast_minutes +
+    '</b><span>/ ' + capacity.weekly_budget_minutes + ' 分钟</span></div><div class="ticket-bottom">' +
+    '<div><small>预算余量</small><strong>' + capacity.headroom_minutes + ' 分钟</strong></div>' +
+    '<div><small>有效复习日</small><strong>' + capacity.active_days + ' 天</strong></div></div></div>' +
+    '<div class="recommendation"><div class="kicker">' + (capacity.simulator_ready ? "FSRS 模拟" : "排程估算") +
+    '</div><h2>' + esc(capacity.decision) + '</h2><p>' + esc(capacity.decision_basis) + " " +
+    esc(capacity.forecast_note) + '</p><button class="btn primary" data-open-cards>检查候选 <span>→</span></button>' +
+    '</div></section><div class="today-line"><span>' + esc(data.conclusion) + '</span><span>今日 ' +
+    data.today.reviews + " 次 · " + data.today.minutes + " 分钟 · 首次学习 " + data.balance.new_today +
+    ' 张</span></div><div class="section-head"><h2>先看这些卡片</h2><small>候选 ' +
+    data.candidate_counts.reviewTotal + " 张 · 此处显示 " + rows.length + " 张</small></div>" +
+    (rows.length ? '<section class="card-grid">' + rows.map(tile).join("") + "</section>" :
+      '<div class="empty">当前范围没有值得检查候选</div>');
+}
+
+function tile(row) {
+  return '<button class="candidate" data-card="' + row.cardId + '">' +
+    coverArt(row, 'tile-art') +
+    '<div class="tile-body"><h3>' + esc(row.summary) + '</h3><div class="reason">' +
+    esc(row.reasons.join(" · ")) + '</div><div class="tile-meta"><strong>' + row.total_min_30 +
+    " 分钟</strong><small>近 30 天</small></div></div></button>";
+}
+
+function thumbnailSrc(row) {
+  if (!row.thumbnail) return "";
+  return /^(https?:|data:|\/)/.test(row.thumbnail) ? row.thumbnail : "/" + row.thumbnail;
+}
+
+function stackCover(className) {
+  return '<div class="' + className + ' fallback-cover" aria-hidden="true"><span class="stack-symbol">' +
+    '<i></i><i></i><i></i></span></div>';
+}
+
+function coverArt(row, className) {
+  const src = thumbnailSrc(row);
+  if (src) return '<div class="' + className + '"><img src="' + esc(src) + '" alt=""></div>';
+  if (row.previewKind === 'text' && row.previewText) {
+    return '<div class="' + className + ' text-preview"><div class="text-cover"><strong>' +
+      esc(row.previewText) + '</strong><small>' + esc(row.deck || row.titleFallback || '') + '</small></div></div>';
+  }
+  return stackCover(className);
+}
+
+function detailCover(row) {
+  return coverArt(row, 'detail-cover tile-art');
+}
+
+function detailFallbackTitle(row) {
+  return row.previewKind === 'fallback' && row.titleFallback ?
+    '<h2 class="detail-fallback-title">' + esc(row.titleFallback) + '</h2>' : '';
+}
+
+function queueButtons() {
+  const counts = state.dashboard ? state.dashboard.candidate_counts : {reviewTotal: 0, optimizationTotal: 0};
+  return '<button data-queue="review" class="' + (state.queue === "review" ? "active" : "") +
+    '">值得检查 ' + counts.reviewTotal + '</button><button data-queue="optimization" class="' +
+    (state.queue === "optimization" ? "active" : "") + '">待优化 ' + counts.optimizationTotal + "</button>";
+}
+
+function filterButtons() {
+  if (state.queue !== 'review') return '<small>按需优化卡片标签显示，包含暂停或忽略的卡片</small>';
+  return [["all", "全部"], ["slow", "多次慢"], ["again", "多次 Again"], ["quality", "结构疑点"]]
+    .map(function (item) {
+      return '<button data-filter="' + item[0] + '" class="' + (state.filter === item[0] ? "active" : "") +
+        '">' + item[1] + "</button>";
+    }).join("");
+}
+
+function inspection() {
+  const rows = currentRows();
+  const total = allRows().length;
+  let body;
+  if (!rows.length) {
+    body = '<div class="empty">当前筛选没有卡片</div>';
+  } else {
+    const selectedRow = rows.find(function (row) { return row.cardId === state.selected; }) || rows[0];
+    if (state.selected !== selectedRow.cardId) state.selected = selectedRow.cardId;
+    const list = '<aside id="inspection-list" class="inspection-list" ' + (state.collapsed ? 'hidden' : '') + '>' + rows.map(function (row) {
+      const evidence = row.reasons.concat(row.limitations || []);
+      return '<button class="mini-card ' + (row.cardId === selectedRow.cardId ? "selected" : "") +
+        '" data-card="' + row.cardId + '" ' + (state.editing ? "disabled" : "") + '><h3>' +
+        esc(row.summary) + '</h3><div class="mini-meta">' + esc(evidence.join(" · ")) + "</div></button>";
+    }).join("") + "</aside>";
+    body = '<section class="inspection ' + (state.collapsed ? "collapsed" : "") + '">' + list +
+      '<div class="workspace"><button class="list-toggle" id="collapse" aria-controls="inspection-list" aria-expanded="' + !state.collapsed + '" aria-label="' +
+      (state.collapsed ? "展开列表" : "收起列表") + '">' + icon(state.collapsed ? 'sidebar' : 'left') + "</button>" +
+      detailArea(selectedRow, rows) + "</div></section>" + dialogs();
+  }
+  return '<div class="inspection-heading"><div class="filter-group">' + queueButtons() +
+    '</div><div class="signal-options">' + filterButtons() + '</div><label class="sort-label">排序<select id="sort">' +
+    [['recent', '近 30 天耗时'], ['slow', '慢次数'], ['again', 'Again 次数']].map(([key, label]) =>
+      '<option value="' + key + '" ' + (state.sort === key ? 'selected' : '') + '>' + label + '</option>').join('') +
+    '</select></label><span class="filter-count">候选 ' + total + ' 张 · 筛选 ' + rows.length + ' 张 · 显示 ' + rows.length + " 张</span></div>" +
+    (state.message ? '<div class="message">' + esc(state.message) + "</div>" : "") + body;
+}
+
+function cardFrame(content, title, css) {
+  const documentHtml = '<!doctype html><html><head><base href="' + location.origin +
+    '/" target="_blank"><style>html,body{margin:0;padding:0;background:transparent}img{max-width:100%;height:auto}' + (css || "") +
+    '</style></head><body class="card"><div data-card-content style="display:flow-root">' + content + "</div></body></html>";
+  return '<iframe class="rendered-card" title="' + esc(title) +
+    '" sandbox="allow-same-origin allow-popups" srcdoc="' +
+    esc(documentHtml) + '"></iframe>';
+}
+
+function formatReviewEvents(events) {
+  if (!events || !events.length) return "暂无有效复习记录";
+  return events.slice().reverse().map(function (event) {
+    const date = new Date(event.reviewedAt * 1000);
+    const day = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" +
+      String(date.getDate()).padStart(2, "0");
+    return day + " · " + Math.round(event.durationMs / 1000) + " 秒" + (event.rating === 1 ? " · Again" : "");
+  }).join("<br>");
+}
+
+function icon(name) {
+  const paths = {
+    left: 'M15 5l-7 7 7 7', sidebar: 'M5 5v14M11 6l6 6-6 6',
+    pause: 'M8 5v14M16 5v14', play: 'M8 5l11 7-11 7z',
+    optimize: 'M15 5l4 4M4 20l4-1L19 8l-3-3L5 16zM5 4v4M3 6h4',
+    hide: 'M3 3l18 18M10 10a3 3 0 0 0 4 4M6 6C4 8 2 12 2 12s4 7 10 7c2 0 4-1 6-3M10 5c7-1 12 7 12 7s-1 2-3 4',
+    tag: 'M3 3h8l10 10-8 8L3 11zM7 7h.01', trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
+  };
+  return '<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + paths[name] + '"></path></svg>';
+}
+
+function queueLayout() {
+  if (layoutFrame) return;
+  layoutFrame = requestAnimationFrame(() => { layoutFrame = 0; positionReadingControls(); });
+}
+
+function positionReadingControls() {
+  const card = root.querySelector('.detail');
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  const top = Math.max(80, rect.top), bottom = Math.min(innerHeight - 12, rect.bottom);
+  const visible = bottom - top >= 80 && rect.right > 12 && rect.left < innerWidth - 12;
+  const center = (top + bottom) / 2;
+  root.querySelectorAll('[data-step]').forEach(button => {
+    button.hidden = !visible || state.editing;
+    const x = button.dataset.step === '-1' ? rect.left - 46 : rect.right + 4;
+    button.style.left = Math.max(4, Math.min(x, innerWidth - 46)) + 'px';
+    button.style.top = (center - 21) + 'px';
+  });
+  const toggle = root.querySelector('#collapse'), list = root.querySelector('.inspection-list');
+  if (!toggle || !list) return;
+  const listRect = list.getBoundingClientRect();
+  const low = Math.max(80, listRect.top) + 28, high = Math.min(innerHeight - 12, listRect.bottom) - 28;
+  let y = (low + high) / 2;
+  if (Math.abs(y - center) < 66) {
+    y = [center - 66, center + 66].filter(n => n >= low && n <= high)[0] ?? low;
+  }
+  const floating = !state.collapsed && innerWidth > 760 && high - low >= 104 && Math.abs(y - center) >= 52;
+  toggle.classList.toggle('is-handle', floating);
+  toggle.style.left = floating ? ((listRect.right + rect.left) / 2 - 11) + 'px' : '';
+  toggle.style.top = floating ? (y - 28) + 'px' : '';
+}
+
+function bindCardFrames() {
+  root.querySelectorAll('.rendered-card').forEach(frame => {
+    frame.addEventListener('load', () => {
+      if (!frame.isConnected) return;
+      const doc = frame.contentDocument;
+      if (!doc?.body) return;
+      const content = doc.querySelector('[data-card-content]');
+      let resizeFrame = 0;
+      const resize = () => {
+        if (!frame.isConnected || !frame.getBoundingClientRect().width) return;
+        if (resizeFrame) cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = 0;
+          if (!frame.isConnected) return;
+          // Measure against a fixed viewport so vh-based templates cannot grow
+          // the iframe that defines their own viewport on every observation.
+          frame.style.height = '150px';
+          const height = Math.ceil(Math.max(
+            content.scrollHeight,
+            doc.body.scrollHeight,
+            doc.documentElement.scrollHeight,
+          ));
+          frame.style.height = Math.max(150, height) + 'px';
+          queueLayout();
+        });
+      };
+      doc.querySelectorAll('a[href]').forEach(link => {
+        // Explicit targets in imported HTML must not navigate the card or manager.
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
       });
+      doc.querySelectorAll('img').forEach(img => {
+        img.addEventListener('load', resize);
+        img.addEventListener('error', () => { img.alt = '图片不可用：' + img.getAttribute('src'); resize(); });
+      });
+      const observer = new MutationObserver(resize);
+      observer.observe(content, {subtree: true, childList: true, characterData: true, attributes: true});
+      contentObservers.push(observer);
+      cardFrameResizers.push(resize);
+      doc.fonts?.ready.then(resize);
+      frame.closest('.answer')?.addEventListener('toggle', resize);
+      resize();
+    });
+  });
+}
+
+function closeProcessMenu(focus = false) {
+  const menu = root.querySelector('[data-process-menu]');
+  if (!menu?.open) return;
+  menu.open = false;
+  menu.querySelector('summary').setAttribute('aria-expanded', 'false');
+  if (focus) menu.querySelector('summary').focus({preventScroll: true});
+}
+
+function positionMenu(menu) {
+  const popup = menu.querySelector('.process-popover');
+  const rect = menu.querySelector('summary').getBoundingClientRect();
+  popup.style.left = Math.max(12, Math.min(rect.left, innerWidth - popup.offsetWidth - 12)) + 'px';
+  const below = rect.bottom + 8;
+  popup.style.top = (below + popup.offsetHeight <= innerHeight - 12 ? below : Math.max(12, rect.top - popup.offsetHeight - 8)) + 'px';
+}
+
+function bindProcessMenu() {
+  const menu = root.querySelector('[data-process-menu]');
+  if (!menu) return;
+  const trigger = menu.querySelector('summary');
+  const open = last => {
+    if (state.busy || state.preparingDelete) return;
+    menu.open = true;
+    trigger.setAttribute('aria-expanded', 'true');
+    positionMenu(menu);
+    const items = menu.querySelectorAll('[role="menuitem"]');
+    items[last ? items.length - 1 : 0]?.focus({preventScroll: true});
+  };
+  trigger.addEventListener('click', event => {
+    event.preventDefault();
+    if (menu.open) closeProcessMenu(true); else open(false);
+  });
+  trigger.addEventListener('keydown', event => {
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+    event.preventDefault(); event.stopPropagation(); open(event.key === 'ArrowUp');
+  });
+  menu.addEventListener('toggle', () => { if (menu.open) positionMenu(menu); });
+  menu.addEventListener('keydown', event => {
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      event.stopPropagation();
+      if (event.key === 'Escape') event.preventDefault();
+      closeProcessMenu(true); return;
     }
-    function severityClass(metric, value) {
-      if (metric === "avg") return value >= 60 ? "tone-red" : value >= 40 ? "tone-amber" : "tone-green";
-      if (metric === "again") return value >= 25 ? "tone-red" : value >= 15 ? "tone-amber" : "tone-green";
-      return value > 0 ? "tone-amber" : "tone-green";
-    }
-    function renderTabs() {
-      const items = [
-        ["overview", "总览", ""],
-        ["attention", "注意力黑洞", dashboard.attention_holes.length],
-        ["quality", "卡片质量", dashboard.quality_cards.length],
-      ];
-      tabs.innerHTML = items.map(([id, label, count]) => `<button class="tab ${activeView === id ? "active" : ""}" onclick="setView('${id}')">${label}${count !== "" ? `<span class="tab-count">${count}</span>` : ""}</button>`).join("");
-    }
-    function renderDecks() {
-      const selected = dashboard.selected_deck || "";
-      deckSelect.innerHTML = [`<option value="">全部管理牌组</option>`, ...dashboard.decks.map(deck => `<option value="${esc(deck)}">${esc(deck)}</option>`)].join("");
-      deckSelect.value = selected;
-    }
-    function renderBudget() {
-      budgetInput.value = dashboard.balance.budget_minutes;
-    }
-    function detailFilters() {
-      if (activeView !== "attention") return "";
-      const items = [["all", "全部"], ["slow", "多次慢"], ["again", "多次 Again"]];
-      return `<div class="filters" aria-label="注意力黑洞筛选">${items.map(([id, label]) => `<button class="filter ${detailMode === id ? "active" : ""}" onclick="setDetailMode('${id}')">${label}</button>`).join("")}</div>`;
-    }
-    function topPriority(rows) {
-      return rows.slice(0, 5).map((r, index) => `<div class="priority-row">
-        <div class="rank">${String(index + 1).padStart(2, "0")}</div>
-        <div>
-          <div class="card-title">${esc(r.front)}</div>
-          <div class="card-meta">${esc(r.deck)} · 近几次 ${fmtTimes(r.last_times)}</div>
-        </div>
-        <div class="attention-value"><strong>${r.total_min_90} 分钟</strong><span>90 天 · 均时 ${r.avg_s}s</span></div>
-      </div>`).join("");
-    }
-    function detailTable(rows) {
-      if (!rows.length) return `<div class="empty">没有匹配的卡片</div>`;
-      return `<div class="table-shell"><div class="table-scroll"><table>
-        <thead><tr><th>卡片</th><th>长期消耗</th><th>检索表现</th><th>诊断</th><th>建议</th></tr></thead>
-        <tbody>${rows.map(r => `<tr>
-          <td class="question-cell">
-            <div class="question">${esc(r.front)}</div>
-            <div class="meta"><span class="chip chip-neutral">${esc(r.deck)}</span>${chips(r.tags)}</div>
-          </td>
-          <td data-label="长期消耗"><div class="number-main">${r.total_min_90} 分钟</div><div class="number-sub">90 天 · 30 天 ${r.total_min_30} 分钟</div></td>
-          <td data-label="检索表现"><div class="number-main">均时 ${r.avg_s}s</div><div class="number-sub">慢 ${r.slow_count} · Again ${r.again_count}</div><div class="number-sub">${fmtTimes(r.last_times)}</div></td>
-          <td data-label="诊断"><div class="meta">${chips(r.problems, r.problems.includes("图片卡：不可按空题干判断") ? "stage" : "warn") || '<span class="chip chip-neutral">待人工判断</span>'}</div></td>
-          <td data-label="建议"><div class="action-text">${esc(r.action)}</div></td>
-        </tr>`).join("")}</tbody>
-      </table></div></div>`;
-    }
-    function renderOverview() {
-      const d = dashboard;
-      const capacity = d.capacity;
-      const managedLabel = capacity.managed_decks.length
-        ? capacity.managed_decks.join("、")
-        : "全部牌组";
-      const simulatorReady = capacity.source === "fsrs_simulator";
-      const overloaded = capacity.headroom_minutes < 0;
-      const blocked = simulatorReady ? capacity.recommended_new === 0 : overloaded;
-      const decision = blocked
-        ? "本周暂停新增"
-        : simulatorReady
-          ? `本周建议新增 ${capacity.recommended_new} 张`
-          : "新增额度待 FSRS 模拟";
-      const decisionBasis = blocked
-        ? `已新增 ${capacity.added_new} 张 · 建议新增 0 张；先处理积压。`
-        : simulatorReady
-          ? `已新增 ${capacity.added_new} 张 · 建议上限 ${capacity.recommended_new} 张。`
-          : `已新增 ${capacity.added_new} 张；接入原生 Simulator 前不输出正额度。`;
-      const forecastProgress = percent(capacity.forecast_minutes, capacity.weekly_budget_minutes);
-      const forecastNote = overloaded
-        ? `超过预算 ${Math.abs(capacity.headroom_minutes)} 分钟`
-        : `尚余 ${capacity.headroom_minutes} 分钟，正额度仍需 FSRS 模拟`;
-      return `<section class="briefing">
-        <div>
-          <div class="eyebrow">本周注意力决策 · 管理范围 ${esc(managedLabel)}</div>
-          <h2>${decision}</h2>
-          <div class="next-action"><b>额度：</b><span>${decisionBasis}</span></div>
-        </div>
-        <div>
-          <div class="budget-head"><strong>${capacity.forecast_minutes}<small> / ${capacity.weekly_budget_minutes} 分钟</small></strong><span>${simulatorReady ? "FSRS 模拟" : "排程债务估算"} / 每周预算</span></div>
-          <div class="track ${overloaded ? "over" : ""}"><i style="--w:${forecastProgress}%"></i></div>
-          <div class="budget-note">${forecastNote}</div>
-        </div>
-      </section>
-      <section class="today-summary">
-        <div><span>今日结论</span><strong>${esc(d.conclusion)}</strong></div>
-        <small>已复习 ${d.today.reviews} 张 · ${d.today.minutes} 分钟${d.selected_deck ? ` · 当前牌组未来 7 天 ${capacity.scope_forecast_minutes} 分钟` : ""}</small>
-      </section>
-      <section class="signals" aria-label="今日关键信号">
-        <div class="signal"><div class="signal-label">单卡均时</div><div class="signal-value"><strong>${d.today.avg_s}</strong><small>秒</small></div><div class="signal-status ${severityClass("avg", d.today.avg_s)}">${d.today.avg_s >= 50 ? "检索偏重" : "可控"}</div></div>
-        <div class="signal"><div class="signal-label">60 秒以上</div><div class="signal-value"><strong>${d.today.slow_count}</strong><small>张</small></div><div class="signal-status ${severityClass("slow", d.today.slow_count)}">${d.today.slow_count ? "需要审计" : "无异常"}</div></div>
-        <div class="signal"><div class="signal-label">Again 率</div><div class="signal-value"><strong>${d.today.again_rate}</strong><small>%</small></div><div class="signal-status ${severityClass("again", d.today.again_rate)}">${d.today.again_rate >= 15 ? "提取不稳" : "稳定"}</div></div>
-        <div class="signal"><div class="signal-label">当前到期</div><div class="signal-value"><strong>${compact(d.balance.due)}</strong><small>张</small></div><div class="signal-status ${d.balance.due > 100 ? "tone-red" : "tone-green"}">${d.balance.due > 100 ? "队列积压" : "可控"}</div></div>
-      </section>
-      <section class="overview-grid">
-        <div>
-          <div class="section-head"><div><h2>先处理这 5 张</h2><p>按 90 天总耗时排序，先止住长期消耗。</p></div><button class="text-button" onclick="setView('attention')">查看全部 →</button></div>
-          <div class="priority-list">${topPriority(d.attention_holes)}</div>
-        </div>
-      </section>`;
-    }
-    function renderDetail() {
-      const config = {
-        attention: ["注意力黑洞", "长期总耗时高，不等于没价值；它表示最值得人工审计。"],
-        quality: ["卡片质量", "解释卡片为何不合理；规则只发现结构风险，不代替价值判断。"],
-      }[activeView];
-      return `<section class="detail">
-        <div class="toolbar">
-          <div><h2>${config[0]}</h2><p>${config[1]}</p></div>
-          <div class="toolbar-actions">
-            ${detailFilters()}
-            <input class="search" type="search" value="${esc(searchText)}" oninput="searchRows(this.value)" placeholder="搜索卡片、牌组、标签或诊断" aria-label="搜索卡片">
-          </div>
-        </div>
-        ${detailTable(viewRows())}
-      </section>`;
-    }
-    function render() {
-      renderTabs();
-      renderDecks();
-      renderBudget();
-      app.className = "";
-      app.innerHTML = activeView === "overview" ? renderOverview() : renderDetail();
-    }
-    function setView(view) {
-      activeView = view;
-      searchText = "";
-      detailMode = "all";
-      if (view === "overview") pageParams.delete("view");
-      else pageParams.set("view", view);
-      history.replaceState(null, "", `?${pageParams.toString()}`);
-      render();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-    function setDetailMode(mode) {
-      detailMode = mode;
-      app.innerHTML = renderDetail();
-    }
-    function setDeck(deck) {
-      if (deck) pageParams.set("deck", deck);
-      else pageParams.delete("deck");
-      history.replaceState(null, "", `?${pageParams.toString()}`);
-      load();
-    }
-    function setBudget(value) {
-      const budget = Math.round(Number(value));
-      if (!Number.isFinite(budget) || budget < 1 || budget > 1440) {
-        budgetInput.value = dashboard.balance.budget_minutes;
-        return;
-      }
-      pageParams.set("budget", String(budget));
-      localStorage.setItem("attentionDailyBudgetMinutes", String(budget));
-      history.replaceState(null, "", `?${pageParams.toString()}`);
-      load();
-    }
-    function searchRows(value) {
-      searchText = value;
-      const tableHost = document.querySelector(".table-shell, .empty");
-      if (tableHost) tableHost.outerHTML = detailTable(viewRows());
-    }
-    async function load() {
-      app.className = "loading";
-      app.textContent = "正在读取 Anki 数据...";
-      try {
-        const api = new URL("/api/dashboard", location.origin);
-        const deck = pageParams.get("deck") || "";
-        const savedBudget = localStorage.getItem("attentionDailyBudgetMinutes") || "";
-        if (!pageParams.has("budget") && /^\d+$/.test(savedBudget)) {
-          pageParams.set("budget", savedBudget);
-          history.replaceState(null, "", `?${pageParams.toString()}`);
-        }
-        const budget = pageParams.get("budget") || "";
-        if (deck) api.searchParams.set("deck", deck);
-        if (budget) api.searchParams.set("budget", budget);
-        const res = await fetch(api);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "加载失败");
-        dashboard = data;
-        syncTime.textContent = `${data.generated_at.slice(11, 16)} 更新 · ${data.runtime_s}s`;
+    const items = [...menu.querySelectorAll('[role="menuitem"]')];
+    const index = items.indexOf(document.activeElement);
+    const positions = {ArrowDown: (index + 1) % items.length, ArrowUp: (index - 1 + items.length) % items.length,
+      Home: 0, End: items.length - 1};
+    if (event.key in positions) { event.preventDefault(); event.stopPropagation(); items[positions[event.key]].focus(); }
+  });
+}
+
+function detailArea(row, rows) {
+  const detail = state.detail;
+  if (!detail || detail.cardId !== row.cardId) {
+    return '<div class="detail-shell"><div></div><article class="detail"><div class="loading">正在读取完整卡片…</div></article><div></div></div>';
+  }
+  const index = rows.findIndex(function (item) { return item.cardId === row.cardId; });
+  const previousDisabled = index <= 0 || state.editing ? "disabled" : "";
+  const nextDisabled = index >= rows.length - 1 || state.editing ? "disabled" : "";
+  const card = '<article class="detail"><header class="detail-head"><div><span class="detail-deck">' + esc(detail.deckName) + '</span><span class="pill">' +
+    (detail.suspended ? "已暂停" : "复习中") + "</span>" +
+    detail.tags.map(function (tag) { return '<span class="pill">' + esc(tag) + "</span>"; }).join("") +
+    "</div><small>" + (index + 1) + " / " + rows.length + '</small></header><div class="detail-body">' +
+    (state.editing ? editor(detail) :
+      detailCover(row) + detailFallbackTitle(row) + cardFrame(detail.questionHtml, "题面", detail.cardCss) +
+      '<details class="answer" ' + (state.answerOpen ? "open" : "") +
+      '><summary>查看完整答案</summary>' + cardFrame(detail.answerHtml, "答案", detail.cardCss) + "</details>") +
+    '</div><div class="evidence"><div><small>最近 ' + row.recent_reviews.length +
+    ' 次（旧→新）</small><strong class="review-events">' + formatReviewEvents(row.recent_reviews) +
+    '</strong></div><div><small>≥40 秒 / Again</small><strong>' + row.slow_count + " / " +
+    row.again_count + ' 次</strong></div><div><small>近 30 天累计</small><strong>' +
+    row.total_min_30 + ' 分钟</strong></div><div><small>结构疑点</small><strong>' +
+    esc(row.problems.join(" · ") || "无自动结论") + "</strong>" +
+    ((row.limitations || []).length ? '<small>' + esc(row.limitations.join(" · ")) + "</small>" : "") +
+    "</div></div>" + (state.editing ? "" : actionBar(detail)) + "</article>";
+  return '<div class="detail-shell"><div class="nav-rail"><button class="nav-arrow nav-prev" data-step="-1" ' +
+    previousDisabled + ' aria-label="上一张">‹</button></div>' + card +
+    '<div class="nav-rail next"><button class="nav-arrow nav-next" data-step="1" ' + nextDisabled +
+    ' aria-label="下一张">›</button></div></div>';
+}
+
+function actionBar(detail) {
+  const optimizing = detail.tags.includes("需优化卡片");
+  const item = (symbol, attribute, label, description) => '<button class="menu-action" role="menuitem" ' + attribute + '>' +
+    icon(symbol) + '<span><strong>' + label + '</strong><small>' + description + '</small></span></button>';
+  return '<footer class="detail-actions"><button class="btn primary" data-edit>编辑卡片</button>' +
+    '<details class="process-menu" data-process-menu><summary class="btn" aria-haspopup="menu" aria-expanded="false">处理⌄</summary>' +
+    '<div class="process-popover" role="menu" aria-label="处理当前卡片"><div class="menu-heading">复习安排</div>' +
+    item(detail.suspended ? 'play' : 'pause', 'data-suspend', detail.suspended ? '恢复复习' : '暂停复习', '只改变当前卡片的复习状态') +
+    item('optimize', 'data-optimize', optimizing ? '移除待优化标签' : '暂停并标记待优化', '标签影响 ' + detail.noteCardCount + ' 张卡片；移除标签不恢复复习') +
+    '<div class="menu-divider" role="separator"></div><div class="menu-heading">候选与标签</div>' +
+    item('hide', 'data-hide-open', '从候选中隐藏', '影响 ' + detail.noteCardCount + ' 张卡片；复习状态不变') +
+    item('tag', 'data-edit-tags', '修改标签', '标签影响同一笔记的全部卡片') +
+    '<div class="menu-divider" role="separator"></div>' +
+    item('trash', 'data-delete', '删除笔记…', '删除笔记生成的全部卡片，下一步确认') + '</div></details></footer>';
+}
+
+function editor(detail) {
+  const draft = state.draft;
+  return '<form id="editor" class="editing"><p class="muted">只提交改动字段；未改动的富文本、图片引用、cloze 与回链原样保留。</p>' +
+    detail.fields.map(function (field, index) {
+      return "<label>" + esc(field.name) + '<textarea data-field="' + esc(field.name) + '" ' +
+        (index ? 'class="back-input"' : "") + " " + (state.busy ? "disabled" : "") + ">" +
+        esc(draft.fields[field.name]) + "</textarea></label>";
+    }).join("") +
+    '<label>标签<input id="tags" value="' + esc(draft.tags.join(" ")) + '" ' +
+    (state.busy ? "disabled" : "") + '></label><div class="editor-buttons">' +
+    '<button class="btn primary" type="submit" ' + (state.busy ? "disabled" : "") + ">保存</button>" +
+    '<button class="btn" type="button" data-cancel ' + (state.busy ? "disabled" : "") +
+    ">取消</button></div></form>";
+}
+
+function normalizeTags(tags) {
+  return Array.from(new Set(tags.filter(Boolean))).sort();
+}
+
+function editValues() {
+  if (!state.draft) return {changed: {}, tags: [], dirty: false};
+  const changed = {};
+  Object.keys(state.draft.fields).forEach(function (name) {
+    const value = state.draft.fields[name];
+    const original = state.draft.originalFields[name];
+    if (value.replace(/\r\n?/g, "\n") !== original.replace(/\r\n?/g, "\n")) changed[name] = value;
+  });
+  const tags = normalizeTags(state.draft.tags);
+  const dirty = Object.keys(changed).length > 0 ||
+    tags.join(" ") !== normalizeTags(state.draft.originalTags).join(" ");
+  return {changed: changed, tags: tags, dirty: dirty};
+}
+
+function dialogs() {
+  const detail = state.detail;
+  const count = detail ? detail.noteCardCount : 0;
+  return '<dialog id="unsaved" class="dialog"><h2>还有未保存的修改</h2>' +
+    '<p>保存当前卡片后继续，或放弃这次修改。</p><div class="dialog-actions">' +
+    '<button class="btn" data-keep autofocus>继续编辑</button><button class="btn" data-discard>放弃修改</button>' +
+    '<button class="btn primary" data-save-next>保存并继续</button></div></dialog>' +
+    '<dialog id="hide-dialog" class="dialog"><h2>隐藏这条笔记的 ' + count + ' 张卡片？</h2>' +
+    '<p>将给整条笔记添加“看板忽略”标签。卡片仍会正常复习；在 Anki 中移除该标签即可恢复候选。</p>' +
+    '<div class="dialog-actions"><button class="btn" data-hide-cancel autofocus>取消</button>' +
+    '<button class="btn primary" data-hide-confirm>确认隐藏</button></div></dialog>' +
+    '<dialog id="delete-dialog" class="dialog"><h2 id="delete-title">确认删除</h2>' +
+    '<p>删除沿用 Anki 的笔记级语义。</p><div class="dialog-actions">' +
+    '<button class="btn" data-delete-cancel autofocus>取消</button>' +
+    '<button class="btn danger" data-delete-confirm>删除</button></div></dialog>';
+}
+
+function startEditing(focusTags) {
+  if (!state.detail || state.busy || state.preparingDelete) return;
+  state.editing = true;
+  state.draft = {
+    cardId: state.detail.cardId,
+    noteId: state.detail.noteId,
+    fields: Object.fromEntries(state.detail.fields.map(function (field) { return [field.name, field.value]; })),
+    originalFields: Object.fromEntries(state.detail.fields.map(function (field) { return [field.name, field.value]; })),
+    tags: state.detail.tags.slice(),
+    originalTags: state.detail.tags.slice(),
+  };
+  render();
+  const target = focusTags ? root.querySelector("#tags") : root.querySelector("[data-field]");
+  if (target) target.focus();
+}
+
+function requestChange(action) {
+  if (state.busy || state.preparingDelete) return;
+  if (!state.editing || !editValues().dirty) {
+    state.editing = false;
+    state.draft = null;
+    action();
+    applyPendingSettings();
+    return;
+  }
+  pendingAction = action;
+  const dialog = root.querySelector("#unsaved");
+  if (dialog) dialog.showModal();
+}
+
+function nextCardAfter(cardId) {
+  const rows = currentRows();
+  const index = rows.findIndex(function (row) { return row.cardId === cardId; });
+  if (index < 0) return null;
+  if (rows[index + 1]) return rows[index + 1].cardId;
+  return rows[index - 1] ? rows[index - 1].cardId : null;
+}
+
+async function saveNote(continueAction) {
+  if (state.busy) return;
+  if (!state.draft || !state.detail ||
+      state.draft.noteId !== state.detail.noteId ||
+      state.draft.cardId !== state.detail.cardId) {
+    state.message = "保存已取消：当前卡片与草稿不一致，请重新进入编辑。";
+    state.editing = false;
+    state.draft = null;
+    render();
+    return;
+  }
+  const target = {noteId: state.draft.noteId, cardId: state.draft.cardId};
+  const fallbackCardId = nextCardAfter(target.cardId);
+  const values = editValues();
+  state.busy = true;
+  render();
+  try {
+    await send("saveNote", {
+      noteId: target.noteId,
+      changedFields: values.changed,
+      tags: values.tags,
+    });
+    state.editing = false;
+    state.draft = null;
+    state.message = "已保存到 Anki";
+    await loadDashboard({afterSave: true, preferredCardId: target.cardId, fallbackCardId: fallbackCardId});
+    if (continueAction) continueAction();
+  } catch (error) {
+    state.busy = false;
+    state.message = "保存失败：" + error.message;
+    render();
+  }
+}
+
+async function saveSettings(deckId, budget) {
+  if (state.busy || state.settingsBusy) return;
+  const previous = {deckId: state.init.selectedDeckId, budget: state.init.dailyBudgetMinutes};
+  state.settingsBusy = true;
+  render();
+  try {
+    const saved = await send("saveSettings", {deckId: deckId, dailyBudgetMinutes: budget});
+    pendingSettings = saved;
+    applyPendingSettings();
+  } catch (error) {
+    Object.assign(state.init, {
+      selectedDeckId: previous.deckId,
+      dailyBudgetMinutes: previous.budget,
+    });
+    state.settingsBusy = false;
+    state.message = "设置保存失败：" + error.message;
+    render();
+  }
+}
+
+function applyPendingSettings() {
+  if (!pendingSettings || state.busy || state.preparingDelete || root.querySelector('dialog[open]')) return;
+  const saved = pendingSettings;
+  const apply = () => {
+    if (pendingSettings !== saved) return;
+    pendingSettings = null;
+    state.settingsBusy = false;
+    Object.assign(state.init, {selectedDeckId: saved.deckId, dailyBudgetMinutes: saved.dailyBudgetMinutes, selectionRequired: false});
+    state.dashboard = null;
+    state.detail = null;
+    state.selected = null;
+    loadDashboard();
+  };
+  requestChange(apply);
+}
+
+async function mutate(command, params, successMessage) {
+  if (state.busy) return;
+  const preferredCardId = state.selected;
+  const fallbackCardId = nextCardAfter(preferredCardId);
+  state.busy = true;
+  render();
+  try {
+    await send(command, params);
+    state.message = successMessage;
+    state.editing = false;
+    state.draft = null;
+    await loadDashboard({afterSave: true, preferredCardId: preferredCardId, fallbackCardId: fallbackCardId});
+  } catch (error) {
+    state.busy = false;
+    const refreshed = await loadDashboard({afterSave: true, preferredCardId: preferredCardId, fallbackCardId: fallbackCardId});
+    state.message = "操作未全部完成：" + error.message + (refreshed ? "；已按 Anki 实际状态刷新" : "；回读失败，请刷新确认实际状态");
+    render();
+  }
+}
+
+function render() {
+  contentObservers.forEach(observer => observer.disconnect());
+  contentObservers = [];
+  cardFrameResizers = [];
+  root.className = "app";
+  if (!state.init) {
+    root.innerHTML = '<div class="loading">正在连接 Anki…</div>';
+    return;
+  }
+  if (state.init.selectionRequired) {
+    root.innerHTML = header() + scope() + '<div class="empty">上次选择的牌组已不存在，请重新选择牌组。</div>';
+    bind();
+    return;
+  }
+  root.innerHTML = header() + scope() +
+    (state.view === 'overview' && state.message ? '<div class="message" role="status">' + esc(state.message) + '</div>' : '') +
+    (state.view === "overview" ? overview() : inspection()) +
+    '<p class="footer-note">数据与操作均来自当前 Anki 配置档；高耗时只表示值得查看。</p>';
+  bind();
+  bindCardFrames();
+  bindProcessMenu();
+  queueLayout();
+}
+
+function bind() {
+  root.querySelectorAll("[data-view]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      requestChange(function () {
+        state.view = button.dataset.view;
+        state.message = "";
         render();
-      } catch (error) {
-        app.className = "error";
-        app.textContent = error.message;
-      }
+        if (state.view === "cards" && state.selected !== null) loadCard(state.selected, {force: true});
+      });
+    });
+  });
+  const openCards = root.querySelector("[data-open-cards]");
+  if (openCards) openCards.addEventListener("click", function () {
+    requestChange(() => {
+      state.view = "cards"; state.queue = 'review'; state.filter = 'all';
+      state.selected = currentRows()[0]?.cardId ?? null;
+      render();
+      if (state.selected !== null) loadCard(state.selected, {reveal: true});
+    });
+  });
+  const refresh = root.querySelector("#refresh");
+  if (refresh) refresh.addEventListener("click", function () { requestChange(function () { loadDashboard(); }); });
+  const scopeSelect = root.querySelector("#scope");
+  if (scopeSelect) scopeSelect.addEventListener("change", function () {
+    const value = Number(scopeSelect.value);
+    scopeSelect.value = state.init.selectedDeckId ?? '';
+    if (value) requestChange(function () {
+      saveSettings(value, state.init.dailyBudgetMinutes);
+    });
+  });
+  const budget = root.querySelector("#budget");
+  if (budget) budget.addEventListener("change", function () {
+    const value = Math.round(Number(budget.value));
+    budget.value = state.init.dailyBudgetMinutes;
+    if (value >= 1 && value <= 1440 && state.init.selectedDeckId) {
+      requestChange(function () { saveSettings(state.init.selectedDeckId, value); });
+    } else {
+      render();
     }
-    load();
-  </script>
+  });
+  root.querySelectorAll("[data-card]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      requestChange(function () {
+        if (state.view === "overview") { state.view = "cards"; state.queue = 'review'; state.filter = 'all'; }
+        loadCard(Number(button.dataset.card), {reveal: true});
+      });
+    });
+  });
+  root.querySelectorAll("[data-queue]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      requestChange(function () {
+        state.queue = button.dataset.queue;
+        state.filter = "all";
+        state.selected = currentRows()[0] ? currentRows()[0].cardId : null;
+        state.detail = null;
+        state.answerOpen = false;
+        render();
+        if (state.selected !== null) loadCard(state.selected, {force: true});
+      });
+    });
+  });
+  root.querySelectorAll("[data-filter]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      requestChange(function () {
+        state.filter = button.dataset.filter;
+        state.selected = currentRows()[0] ? currentRows()[0].cardId : null;
+        state.detail = null;
+        state.answerOpen = false;
+        render();
+        if (state.selected !== null) loadCard(state.selected, {force: true});
+      });
+    });
+  });
+  const collapse = root.querySelector("#collapse");
+  if (collapse) collapse.addEventListener("click", function () {
+    const answer = root.querySelector(".answer");
+    if (answer) state.answerOpen = answer.open;
+    state.collapsed = !state.collapsed;
+    try {
+      localStorage.setItem("attention.listCollapsed", state.collapsed ? "1" : "0");
+    } catch (_) {}
+    root.querySelector('.inspection').classList.toggle('collapsed', state.collapsed);
+    root.querySelector('.inspection-list').hidden = state.collapsed;
+    collapse.setAttribute('aria-expanded', String(!state.collapsed));
+    collapse.setAttribute('aria-label', state.collapsed ? '展开列表' : '收起列表');
+    collapse.innerHTML = icon(state.collapsed ? 'sidebar' : 'left');
+    closeProcessMenu();
+    queueLayout();
+  });
+  const answer = root.querySelector(".answer");
+  if (answer) answer.addEventListener("toggle", function () { state.answerOpen = answer.open; queueLayout(); });
+  const sort = root.querySelector('#sort');
+  if (sort) sort.addEventListener('change', () => {
+    const value = sort.value; sort.value = state.sort;
+    requestChange(() => {
+      state.sort = value;
+      state.selected = currentRows()[0]?.cardId ?? null;
+      render();
+      if (state.selected !== null) loadCard(state.selected, {reveal: true});
+    });
+  });
+  root.querySelectorAll("[data-step]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      const rows = currentRows();
+      const index = rows.findIndex(function (row) { return row.cardId === state.selected; });
+      const next = rows[index + Number(button.dataset.step)];
+      if (navigationBlocked()) return;
+      if (next) requestChange(function () { loadCard(next.cardId, {reveal: true}); });
+    });
+  });
+  const edit = root.querySelector("[data-edit]");
+  if (edit) edit.addEventListener("click", function () { startEditing(false); });
+  const editTags = root.querySelector("[data-edit-tags]");
+  if (editTags) editTags.addEventListener("click", function () { startEditing(true); });
+  root.querySelectorAll("[data-field]").forEach(function (field) {
+    field.addEventListener("input", function () { state.draft.fields[field.dataset.field] = field.value; });
+  });
+  const tags = root.querySelector("#tags");
+  if (tags) tags.addEventListener("input", function () {
+    state.draft.tags = tags.value.trim().split(/\s+/).filter(Boolean);
+  });
+  const cancel = root.querySelector("[data-cancel]");
+  if (cancel) cancel.addEventListener("click", function () {
+    requestChange(function () {
+      state.editing = false;
+      state.draft = null;
+      render();
+    });
+  });
+  const editorForm = root.querySelector("#editor");
+  if (editorForm) editorForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    saveNote();
+  });
+  const suspend = root.querySelector("[data-suspend]");
+  if (suspend) suspend.addEventListener("click", function () {
+    mutate("setSuspended", {cardId: state.selected, suspended: !state.detail.suspended},
+      state.detail.suspended ? "已恢复复习" : "已暂停当前卡片");
+  });
+  const optimize = root.querySelector("[data-optimize]");
+  if (optimize) optimize.addEventListener("click", function () {
+    mutate("setOptimization", {
+      cardId: state.selected,
+      enabled: !state.detail.tags.includes("需优化卡片"),
+    }, "待优化状态已更新");
+  });
+  const hideOpen = root.querySelector("[data-hide-open]");
+  if (hideOpen) hideOpen.addEventListener("click", function () {
+    if (state.busy) return;
+    closeProcessMenu();
+    root.querySelector("#hide-dialog").showModal();
+  });
+  const hideCancel = root.querySelector("[data-hide-cancel]");
+  if (hideCancel) hideCancel.addEventListener("click", function () { root.querySelector("#hide-dialog").close(); applyPendingSettings(); });
+  const hideConfirm = root.querySelector("[data-hide-confirm]");
+  if (hideConfirm) hideConfirm.addEventListener("click", function () {
+    root.querySelector("#hide-dialog").close();
+    const count = state.detail.noteCardCount;
+    mutate("setHidden", {cardId: state.selected, enabled: true},
+      "已隐藏整条笔记的 " + count + " 张卡片；复习状态未改变。移除“看板忽略”标签可恢复。");
+  });
+  const deleteButton = root.querySelector("[data-delete]");
+  if (deleteButton) deleteButton.addEventListener("click", async function () {
+    if (state.busy || state.preparingDelete) return;
+    closeProcessMenu();
+    const cardId = state.selected, requestGeneration = generation;
+    state.preparingDelete = true;
+    try {
+      const confirmed = await send("prepareDelete", {cardId});
+      if (cardId !== state.selected || requestGeneration !== generation) return;
+      state.confirmedDelete = confirmed;
+      root.querySelector("#delete-title").textContent =
+        "删除这条笔记及其 " + state.confirmedDelete.cardCount + " 张卡片？";
+      root.querySelector("#delete-dialog").showModal();
+    } catch (error) {
+      state.message = "无法准备删除：" + error.message;
+      render();
+    } finally {
+      state.preparingDelete = false;
+      applyPendingSettings();
+    }
+  });
+  const deleteCancel = root.querySelector("[data-delete-cancel]");
+  if (deleteCancel) deleteCancel.addEventListener("click", function () {
+    root.querySelector("#delete-dialog").close();
+    applyPendingSettings();
+  });
+  const deleteConfirm = root.querySelector("[data-delete-confirm]");
+  if (deleteConfirm) deleteConfirm.addEventListener("click", function () {
+    root.querySelector("#delete-dialog").close();
+    mutate("deleteNote", {
+      noteId: state.confirmedDelete.noteId,
+      confirmedCardIds: state.confirmedDelete.cardIds,
+    }, "笔记及其 " + state.confirmedDelete.cardCount + " 张卡片已删除");
+  });
+  const unsaved = root.querySelector("#unsaved");
+  const keep = root.querySelector("[data-keep]");
+  if (keep) keep.addEventListener("click", function () {
+    pendingAction = null;
+    unsaved.close();
+  });
+  const discard = root.querySelector("[data-discard]");
+  if (discard) discard.addEventListener("click", function () {
+    const action = pendingAction;
+    pendingAction = null;
+    state.editing = false;
+    state.draft = null;
+    unsaved.close();
+    if (action) action();
+    applyPendingSettings();
+  });
+  const saveNext = root.querySelector("[data-save-next]");
+  if (saveNext) saveNext.addEventListener("click", function () {
+    const action = pendingAction;
+    pendingAction = null;
+    unsaved.close();
+    saveNote(action);
+  });
+}
+
+function navigationBlocked() {
+  return state.view !== 'cards' || state.editing || state.busy || state.preparingDelete ||
+    !!root.querySelector('dialog[open],.process-menu[open]');
+}
+
+document.addEventListener("keydown", function (event) {
+  if (navigationBlocked() || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat ||
+      event.target.closest('input,textarea,select,[contenteditable],dialog,[role="menu"]')) return;
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    const button = root.querySelector(event.key === "ArrowLeft" ? ".nav-prev" : ".nav-next");
+    if (button && !button.disabled) { event.preventDefault(); button.click(); }
+  }
+});
+
+root.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const dialog = root.querySelector('dialog[open]');
+  if (!dialog) return;
+  event.preventDefault(); event.stopPropagation();
+  if (dialog.id === 'unsaved') pendingAction = null;
+  dialog.close();
+  if (dialog.id !== 'unsaved') applyPendingSettings();
+});
+
+document.addEventListener("pointerdown", function (event) {
+  document.querySelectorAll(".process-menu[open]").forEach(function (menu) {
+    if (!menu.contains(event.target)) closeProcessMenu();
+  });
+});
+
+window.addEventListener('resize', () => {
+  closeProcessMenu();
+  cardFrameResizers.forEach(resize => resize());
+  queueLayout();
+});
+document.addEventListener('scroll', event => {
+  if (!event.target.closest?.('.process-popover')) closeProcessMenu();
+  queueLayout();
+}, true);
+
+bridgeReady(initialize);
+</script>
 </body>
 </html>

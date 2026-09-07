@@ -1,4 +1,6 @@
 {
   "name": "Attention Is All You Need",
-  "package": "attention_is_all_you_need"
+  "package": "attention_is_all_you_need",
+  "min_point_version": 240400,
+  "max_point_version": 0
 }

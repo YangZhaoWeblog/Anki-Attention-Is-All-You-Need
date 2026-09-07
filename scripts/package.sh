@@ -8,9 +8,21 @@ mkdir -p "$ROOT/dist"
 rm -f "$OUTPUT"
 
 cd "$ROOT/addon"
-zip -q -r "$OUTPUT" . \
-  -x '__pycache__/*' \
-  -x '*.pyc'
+FILES=(
+  "__init__.py"
+  "attention_dashboard.html"
+  "attention_dashboard.py"
+  "config.json"
+  "config.md"
+  "dashboard_actions.py"
+  "dashboard_window.py"
+  "data.py"
+  "fsrs_adapter.py"
+  "manifest.json"
+  "settings.py"
+)
+
+zip -q "$OUTPUT" "${FILES[@]}"
 
 unzip -t "$OUTPUT"
 printf 'Built %s\n' "$OUTPUT"

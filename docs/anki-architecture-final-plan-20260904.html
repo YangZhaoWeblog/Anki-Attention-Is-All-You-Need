@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anki Attention · 标准架构审计与改造计划</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{--ink:#172033;--muted:#667085;--paper:#f4f1eb;--card:#fffefa;--line:#d9dde6;--violet:#4f46e5;--red:#c2413a;--amber:#c46a15;--green:#177257;--cyan:#057f9a}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 0 0,#e9e9ff 0,transparent 28rem),var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,"PingFang SC","Microsoft YaHei",sans-serif}h1,h2,h3,.serif{font-family:Iowan Old Style,Baskerville,"Songti SC",serif}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 15px 42px rgba(31,41,55,.055)}.kicker{font-size:11px;font-weight:850;letter-spacing:.16em;text-transform:uppercase;color:var(--violet)}.pill{display:inline-flex;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:800}.green{background:#dff6ec;color:#12614a}.yellow{background:#fff0ce;color:#8f500e}.red{background:#fee2e2;color:#9f2924}.gray{background:#edf0f4;color:#475467}.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.84em;border:1px solid #e2e8f0;background:#f8fafc;border-radius:5px;padding:.08em .38em}.step{position:relative;padding-left:42px}.step:before{position:absolute;left:0;top:1px;width:27px;height:27px;border-radius:50%;background:#4f46e5;color:white;display:grid;place-items:center;font-weight:850;font-size:12px;content:attr(data-step)}.step:not(:last-child):after{content:"";position:absolute;left:13px;top:30px;bottom:-22px;border-left:2px solid #c7d2fe}.check{display:flex;gap:9px;align-items:flex-start}.check:before{content:"✓";flex:none;width:19px;height:19px;border-radius:5px;background:#dff6ec;color:#12614a;display:grid;place-items:center;font-weight:900;font-size:11px;margin-top:2px}.risk{display:flex;gap:9px;align-items:flex-start}.risk:before{content:"!";flex:none;width:19px;height:19px;border-radius:50%;background:#fee2e2;color:#9f2924;display:grid;place-items:center;font-weight:900;font-size:11px;margin-top:2px}details{border-top:1px solid #e5e7eb;padding:15px 0}details:first-child{border-top:0}summary{cursor:pointer;font-weight:750;list-style:none;display:flex;align-items:center;gap:8px}summary::-webkit-details-marker{display:none}summary:before{content:"＋";color:#4f46e5;font-size:16px}details[open] summary:before{content:"−"}.source a{color:#4338ca;text-decoration:underline;text-underline-offset:2px}.mermaid{display:flex;justify-content:center}.mermaid svg{max-width:100%!important;height:auto!important}@media(max-width:640px){.mermaid{font-size:11px}.step:not(:last-child):after{bottom:-18px}}
+</style>
+</head>
+<body>
+<main class="max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14 space-y-8 md:space-y-10">
+
+<header class="grid lg:grid-cols-[1.15fr_.85fr] gap-7 items-end">
+<div><div class="kicker">Final audit · 2026-09-04</div><h1 class="text-4xl md:text-6xl leading-[1.04] mt-3">Anki 标准架构对照<br><span class="text-indigo-600">与改造路线图</span></h1><p class="mt-5 text-lg text-slate-600 leading-relaxed">结论先行；证据与细节折叠。目标不是“拆更多文件”，而是让插件沿 Anki 官方提供的运行方式工作。</p></div>
+<div class="card p-5"><div class="text-sm font-bold">一句话结论</div><p class="mt-2 text-sm text-slate-600 leading-relaxed">插件的 <b>Python module、hooks、配置、HTML 界面</b>都符合 Anki 插件模型；偏离主要发生在<b>自建 HTTP 服务器、主线程同步查询、AnkiConnect 兼容层、私有 backend/protobuf</b>。</p></div>
+</header>
+
+<section class="card p-6 md:p-8">
+<div class="flex flex-wrap justify-between gap-3 items-end"><div><div class="kicker">01 · verdict</div><h2 class="text-3xl mt-2">哪些是标准的，哪些需要改</h2></div><div class="text-xs text-slate-500">绿 = 保留　黄 = 有条件保留　红 = 改掉或隔离</div></div>
+<div class="grid md:grid-cols-3 gap-4 mt-6">
+<div class="rounded-2xl bg-emerald-50 border border-emerald-200 p-5"><span class="pill green">符合官方模型</span><ul class="mt-4 space-y-3 text-sm"><li class="check">Python module + <span class="code">__init__.py</span></li><li class="check"><span class="code">gui_hooks</span> 与 QAction 接入</li><li class="check"><span class="code">config.json/config.md</span></li><li class="check">HTML/CSS/JS 做复杂界面</li><li class="check"><span class="code">.ankiaddon</span> 打包结构</li></ul></div>
+<div class="rounded-2xl bg-amber-50 border border-amber-200 p-5"><span class="pill yellow">可行，但不是首选</span><ul class="mt-4 space-y-3 text-sm"><li class="risk">系统浏览器 + 自建 localhost server</li><li class="risk">只读 <span class="code">revlog</span> SQL（结构耦合）</li><li class="risk">import 时注册入口（本身正常，别放重活）</li><li class="risk">单文件 HTML（能跑，但业务规则不该进去）</li></ul></div>
+<div class="rounded-2xl bg-red-50 border border-red-200 p-5"><span class="pill red">优先处理</span><ul class="mt-4 space-y-3 text-sm"><li class="risk">AnkiConnect 动态注入与重复通道</li><li class="risk">长查询通过 <span class="code">run_on_main</span> 压回 UI 线程</li><li class="risk">直接调用 <span class="code">col._backend</span></li><li class="risk">直接依赖生成的 <span class="code">scheduler_pb2</span></li><li class="risk">未声明/验证 Anki 兼容版本</li></ul></div>
+</div>
+</section>
+
+<section class="card p-6 md:p-8">
+<div class="kicker">02 · important correction</div><h2 class="text-3xl mt-2">线程模型需要修正：不是“Collection 只能在主线程”</h2>
+<div class="grid lg:grid-cols-2 gap-5 mt-5">
+<div class="rounded-2xl border border-red-200 bg-red-50 p-5"><div class="font-bold text-red-800">当前方式</div>
+<div class="mt-5 flex flex-col items-center gap-2 text-center text-sm">
+  <div class="w-full rounded-xl border border-red-300 bg-white px-4 py-3"><b>HTTP 请求线程</b></div>
+  <div class="text-red-600 font-bold">↓ run_on_main()</div>
+  <div class="w-full rounded-xl border-2 border-red-400 bg-red-100 px-4 py-3"><b>Anki UI 主线程</b><div class="text-xs mt-1">卡片查询 · SQL · FSRS</div></div>
+  <div class="text-red-600 font-bold">↓ Event.set()</div>
+  <div class="w-full rounded-xl border border-red-300 bg-white px-4 py-3">请求线程苏醒并继续</div>
+</div><p class="mt-5 text-sm text-slate-700">安全地避开了并发乱访问，但长查询会冻结 UI；请求线程还用 Event 同步等待最多 120 秒。</p></div>
+<div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><div class="font-bold text-emerald-800">官方推荐方向</div>
+<div class="mt-5 flex flex-col items-center gap-2 text-center text-sm">
+  <div class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3"><b>Anki UI 主线程</b><div class="text-xs mt-1">只负责发起与接收结果</div></div>
+  <div class="text-emerald-700 font-bold">↓ 启动 QueryOp</div>
+  <div class="w-full rounded-xl border-2 border-emerald-500 bg-emerald-100 px-4 py-3"><b>后台操作</b><div class="text-xs mt-1">只读 Collection 查询 + 分析计算</div></div>
+  <div class="text-emerald-700 font-bold">↓ success callback</div>
+  <div class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3">UI 主线程更新页面</div>
+</div><p class="mt-5 text-sm text-slate-700">只读/不可撤销的长操作用 QueryOp；UI 更新回主线程。Collection 操作默认串行，避免与写操作交错。</p></div>
+</div>
+<div class="mt-4 rounded-xl border-l-4 border-orange-500 bg-orange-50 p-4 text-sm"><b>因此：</b><span class="code">mw.taskman.run_on_main()</span> 不是错的能力，但这里用错了方向。它更适合后台任务偶尔更新 UI；本插件却用它执行整批 collection 查询。</div>
+</section>
+
+<section class="card p-6 md:p-8">
+<div class="kicker">03 · target architecture</div><h2 class="text-3xl mt-2">推荐目标：AnkiWebView + QueryOp，无端口、无同步等待</h2><p class="mt-3 text-slate-600">这是最贴近 Anki 官方设施、又保留 HTML 仪表盘体验的形状。</p>
+<div class="mt-5 rounded-2xl border border-slate-200 bg-white p-5 md:p-7">
+<div class="grid lg:grid-cols-[1fr_55px_1.15fr_55px_1fr] items-center gap-3 text-center text-sm">
+  <div class="rounded-2xl border-2 border-indigo-300 bg-indigo-50 p-5"><b class="text-indigo-900">DashboardWindow</b><div class="mt-2 text-xs text-slate-600">QDialog + AnkiWebView<br>展示 HTML / 接收点击</div></div>
+  <div class="text-2xl font-bold text-indigo-500">⇄</div>
+  <div class="rounded-2xl border-4 border-slate-900 bg-slate-900 p-5 text-white"><b>Dashboard controller</b><div class="mt-2 text-xs text-slate-300">JS bridge 请求刷新<br>启动 QueryOp<br>结果回传 web.eval()</div></div>
+  <div class="text-2xl font-bold text-indigo-500">⇄</div>
+  <div class="rounded-2xl border-2 border-cyan-300 bg-cyan-50 p-5"><b class="text-cyan-900">QueryOp 后台</b><div class="mt-2 text-xs text-slate-600">读取 Collection<br>完成分析计算</div></div>
+</div>
+<div class="mx-auto my-4 w-px h-8 border-l-2 border-dashed border-slate-400"></div>
+<div class="grid md:grid-cols-[1fr_1fr] gap-4 text-sm">
+  <div class="rounded-2xl border-4 border-slate-900 bg-slate-900 text-white p-5 text-center"><b>Anki data module</b><div class="mt-2 text-xs text-slate-300">优先 public Collection methods<br>必要批量 SQL 只藏在这里</div></div>
+  <div class="rounded-2xl border-4 border-slate-900 bg-slate-900 text-white p-5 text-center"><b>Dashboard model</b><div class="mt-2 text-xs text-slate-300">容量决定 · 卡片审计<br>输出可直接展示的结果</div></div>
+</div>
+<div class="mt-4 rounded-xl border border-orange-300 bg-orange-50 p-4 text-center text-sm text-orange-900"><b>FSRS compatibility adapter</b>：唯一允许接触私有 backend / protobuf 的位置；不兼容时显式降级。</div>
+</div>
+<div class="grid md:grid-cols-3 gap-4 mt-5 text-sm">
+<div class="rounded-xl bg-indigo-50 p-4"><b>界面</b><p class="mt-1 text-slate-600">QDialog 内嵌 AnkiWebView；JS 用 bridge 请求刷新，Python 回传 JSON。</p></div>
+<div class="rounded-xl bg-cyan-50 p-4"><b>后台</b><p class="mt-1 text-slate-600">一次 QueryOp 读取数据并完成分析，避免多轮线程切换与并发刷新。</p></div>
+<div class="rounded-xl bg-orange-50 p-4"><b>兼容性</b><p class="mt-1 text-slate-600">FSRS 私有调用若暂时无公开替代，只允许存在于一个 adapter，并配版本门槛。</p></div>
+</div>
+<div class="mt-4 text-xs text-slate-500">如果“必须在系统浏览器独立打开”是产品要求，可继续保留 localhost server；但那时应增加随机访问令牌、single-flight、防并发刷新和清晰生命周期。当前没有这个硬要求，所以首选 WebView。</div>
+</section>
+
+<section class="card p-6 md:p-8">
+<div class="kicker">04 · things easy to miss</div><h2 class="text-3xl mt-2">额外发现：你前面没有问到，但值得纳入</h2>
+<div class="mt-5 divide-y divide-slate-200">
+<details open><summary>私有 backend 与 protobuf 是最大的升级风险</summary><div class="pl-7 pt-3 text-sm text-slate-600 leading-relaxed"><span class="code">collection._backend.simulate_fsrs_review()</span> 直接碰以下划线标记的私有对象；当前 Anki 源码明确警告 backend 方法可随时变化，应通过 Collection 的公开方法。Anki 架构文档也说明 protobuf 不是公共接口。本插件还直接导入 <span class="code">SimulateFsrsReviewRequest</span>。如果当前没有公开的等价方法，正确策略是<b>集中隔离 + 明确兼容版本 + 失败降级</b>，而不是让私有类型扩散。</div></details>
+<details><summary>本地 HTTP 接口虽然只绑 127.0.0.1，仍有隐私与并发成本</summary><div class="pl-7 pt-3 text-sm text-slate-600 leading-relaxed">接口无需认证即可返回牌组名、卡片正面、标签和复习行为。远程机器通常访问不到，但本机其他进程可以读取；未来若增加写操作，风险会更高。ThreadingHTTPServer 还会为并发请求创建处理线程，多次刷新可能同时跑多份昂贵计算。</div></details>
+<details><summary>profile 切换/关闭时存在生命周期竞态</summary><div class="pl-7 pt-3 text-sm text-slate-600 leading-relaxed"><span class="code">profile_will_close</span> 异步关闭服务器并立即清空全局变量；此时已在处理的请求仍可能接触即将关闭的 collection，新一次启动也可能撞上尚未释放的端口。内嵌窗口跟随 profile 生命周期会简单很多。</div></details>
+<details><summary>直接 SQL 读取 revlog：只读不等于稳定</summary><div class="pl-7 pt-3 text-sm text-slate-600 leading-relaxed">官方文档允许 DB 查询，但建议尽量使用 Collection 方法；当前 Anki 已有公开 <span class="code">get_review_logs(card_id)</span>。逐卡调用可能有性能代价，因此计划不是盲目替换，而是先基准比较：若保留批量 SQL，必须藏在数据 adapter 内并有字段契约测试。</div></details>
+<details><summary>测试绕开插件包，说明真正的运行 interface 没被测试</summary><div class="pl-7 pt-3 text-sm text-slate-600 leading-relaxed">测试通过 <span class="code">spec_from_file_location()</span> 单独加载一个文件，因为正常 import 依赖 aqt 并触发副作用。这不是测试技巧问题，而是纯计算、Anki adapter 和 UI 注册尚未分开。</div></details>
+<details><summary>manifest 缺少兼容性声明与发布版本信息</summary><div class="pl-7 pt-3 text-sm text-slate-600 leading-relaxed">目前只有 name/package。项目使用 QueryOp、FSRS 与私有 backend，必须选定并验证最低 Anki 版本，然后补 <span class="code">min_point_version</span>、<span class="code">human_version</span> 等信息；私有 FSRS 适配还应在最低版和最新稳定版做烟雾测试。</div></details>
+</div>
+</section>
+
+<section id="plan" class="card p-6 md:p-8">
+<div class="kicker">05 · execution plan</div><h2 class="text-3xl mt-2">实施计划：每一步都能独立验证和回退</h2>
+<p class="mt-3 text-slate-600">不是一次大重写。先删死路、再立数据 seam、再换 UI；任何阶段失败都能停在可运行状态。</p>
+<div class="mt-7 space-y-8">
+<div class="step" data-step="0"><h3 class="text-xl font-bold">锁定当前行为</h3><p class="mt-2 text-sm text-slate-600">先给现有 JSON 结果补“特征测试”，避免架构调整时悄悄改业务。</p><div class="mt-3 grid md:grid-cols-2 gap-3 text-sm"><div><b>涉及</b><br><span class="code">tests/test_attention_dashboard.py</span></div><div><b>验收</b><br>预算、榜单、模拟失败降级、固定 now 的结果可重复。</div></div></div>
+<div class="step" data-step="1"><h3 class="text-xl font-bold">删除 AnkiConnect 全路径</h3><p class="mt-2 text-sm text-slate-600">这是已确认决策：删除端口 8765 fallback、动态 import 数字插件、向 AnkiConnect monkey patch 的三个 action，以及重复的配置/模拟实现。</p><div class="mt-3 grid md:grid-cols-2 gap-3 text-sm"><div><b>修改</b><br><span class="code">addon/__init__.py</span><br><span class="code">addon/attention_dashboard.py</span></div><div><b>验收</b><br>仓库无 AnkiConnect/8765/importlib 桥接；从 Anki 按钮打开仍能生成同样数据。</div></div></div>
+<div class="step" data-step="2"><h3 class="text-xl font-bold">建立 Anki data module，隔离版本风险</h3><p class="mt-2 text-sm text-slate-600">把 deck/card/review/FSRS 读取从字符串 action 改成明确操作；优先公共 Collection 方法。FSRS 私有调用暂时放进唯一 compatibility adapter。</p><div class="mt-3 grid md:grid-cols-2 gap-3 text-sm"><div><b>建议结构</b><br><span class="code">addon/anki_data.py</span><br><span class="code">addon/fsrs_compat.py</span></div><div><b>验收</b><br><span class="code">_backend</span> 与 <span class="code">scheduler_pb2</span> 只允许出现在 fsrs_compat；数据 module 可用 fake collection 测。</div></div></div>
+<div class="step" data-step="3"><h3 class="text-xl font-bold">迁移到 AnkiWebView + QueryOp</h3><p class="mt-2 text-sm text-slate-600">新增 DashboardWindow；HTML 通过 setWebExports/内嵌资源加载；JS bridge 发起刷新；一次 QueryOp 在后台读取并计算，success 回 UI 线程渲染。</p><div class="mt-3 grid md:grid-cols-2 gap-3 text-sm"><div><b>新增/迁移</b><br><span class="code">addon/dashboard_window.py</span><br><span class="code">addon/web/*</span></div><div><b>删除</b><br>ThreadingHTTPServer、Handler、端口扫描、Event.wait、openLink、server globals。</div></div><div class="mt-3 text-sm"><b>验收：</b>Anki UI 在数据加载时可操作；连续点击刷新不会并行跑多份操作；关闭 profile 后无残留窗口/线程/端口。</div></div>
+<div class="step" data-step="4"><h3 class="text-xl font-bold">深化两块业务：容量决定 + 卡片审计</h3><p class="mt-2 text-sm text-slate-600">Python 输出可直接展示的结果；JS 不再根据 raw numbers 重建结论。把 now 作为输入，统一 30/90 天窗口、慢卡/Again 阈值、预算上下限与降级语义。</p><div class="mt-3 grid md:grid-cols-2 gap-3 text-sm"><div><b>建议结构</b><br><span class="code">addon/dashboard_model.py</span>（保持一个深 module，不按每个小函数拆文件）</div><div><b>验收</b><br>删掉 candidate_ids 无效预取；页面无 50/60 双阈值；完整输入 → 完整决定的表驱动测试。</div></div></div>
+<div class="step" data-step="5"><h3 class="text-xl font-bold">兼容性、发布与真实 Anki 烟雾测试</h3><p class="mt-2 text-sm text-slate-600">确定最低支持版本，补 manifest 信息；在最低版与最新稳定版各验证一次打开、刷新、切换牌组、模拟失败降级、profile 关闭与重新打开。</p><div class="mt-3 grid md:grid-cols-2 gap-3 text-sm"><div><b>修改</b><br><span class="code">addon/manifest.json</span><br><span class="code">README.md</span><br><span class="code">scripts/package.sh</span></div><div><b>验收</b><br>打包无 pycache；安装/升级配置保留；私有 FSRS 不兼容时显示明确降级，不导致插件加载失败。</div></div></div>
+</div>
+</section>
+
+<section class="rounded-3xl bg-[#172033] text-white p-7 md:p-9">
+<div class="kicker !text-indigo-300">final recommendation</div><h2 class="text-3xl mt-2">最终路线：删除两层自建基础设施，把复杂度放回 Anki 提供的 seam</h2>
+<div class="grid md:grid-cols-3 gap-4 mt-5 text-sm">
+<div class="rounded-xl border border-white/10 bg-white/5 p-4"><b class="text-red-300">删</b><p class="mt-2 text-slate-300">AnkiConnect<br>ThreadingHTTPServer<br>Event 同步等待</p></div>
+<div class="rounded-xl border border-white/10 bg-white/5 p-4"><b class="text-emerald-300">用</b><p class="mt-2 text-slate-300">gui_hooks / QAction<br>AnkiWebView bridge<br>QueryOp</p></div>
+<div class="rounded-xl border border-white/10 bg-white/5 p-4"><b class="text-amber-300">隔离</b><p class="mt-2 text-slate-300">FSRS 私有 backend<br>protobuf request<br>必要的批量 SQL</p></div>
+</div>
+<p class="mt-5 text-slate-300 leading-relaxed">完成后再跑一次 <span class="text-white font-semibold">improve-codebase-architecture</span> 才有价值：届时检查的是新 seam 是否真的 deep、JS 是否只渲染、兼容 adapter 是否唯一；现在不需要再跑一遍扫描。</p>
+</section>
+
+<section class="card p-6 md:p-8 source">
+<div class="kicker">sources</div><h2 class="text-2xl mt-2">官方依据</h2>
+<div class="mt-4 divide-y divide-slate-200 text-sm">
+<details><summary>Anki add-on 模型与 Python</summary><p class="pl-7 pt-3 text-slate-600">官方说明 add-on 是启动时加载的 Python modules，Anki UI 主要由 Python/PyQt 构成，部分界面使用 TypeScript/Svelte。<br><a href="https://addon-docs.ankiweb.net/">Writing Anki Add-ons · Introduction</a></p></details>
+<details><summary>后台操作与线程</summary><p class="pl-7 pt-3 text-slate-600">官方推荐只读/不可撤销长操作使用 QueryOp；可撤销写操作用 CollectionOp；UI 操作留在主线程。Collection 操作默认串行。<br><a href="https://addon-docs.ankiweb.net/background-ops.html">Background Operations</a></p></details>
+<details><summary>hooks、WebView bridge 与 web assets</summary><p class="pl-7 pt-3 text-slate-600">hooks 是标准接入方式；WebView 可通过 pycmd/bridge 与 Python 通信，并通过 setWebExports 暴露插件资源。<br><a href="https://addon-docs.ankiweb.net/hooks-and-filters.html">Hooks &amp; Filters</a></p></details>
+<details><summary>Collection 与数据库访问</summary><p class="pl-7 pt-3 text-slate-600">官方建议优先使用 Collection 方法；直接数据库访问可能带来一致性与升级风险。<br><a href="https://addon-docs.ankiweb.net/the-anki-module.html">The anki Module</a></p></details>
+<details><summary>Anki 内部架构与 protobuf</summary><p class="pl-7 pt-3 text-slate-600">Anki 后端主要在 Rust，Python pylib 代理调用；官方架构说明 protobuf 当前不视为公共接口。<br><a href="https://docs.ankiweb.net/developers/architecture.html">Anki Architecture</a></p></details>
+<details><summary>打包与 manifest</summary><p class="pl-7 pt-3 text-slate-600">.ankiaddon 的目录规则及 manifest 基础字段。Anki 当前 manifest schema 还支持 min/max point version、human_version、homepage。<br><a href="https://addon-docs.ankiweb.net/sharing.html">Sharing Add-ons</a></p></details>
+</div>
+</section>
+<footer class="text-center text-xs text-slate-400 pb-5">最终审计与计划 · 只生成临时 HTML，未修改仓库代码</footer>
+</main>
+</body></html>

@@ -1,0 +1,96 @@
+<style>
+  #anki-home-sketch { --a-bg:light-dark(#f5f5f1,#191d19); --a-paper:light-dark(#ffffff,#242a24); --a-ink:light-dark(#202720,#edf1e9); --a-muted:light-dark(#626c61,#abb6a7); --a-line:light-dark(#dce2d8,#465043); --a-accent:light-dark(#28694b,#8ec5a5); --a-alert:light-dark(#a54530,#f5aa90); color:var(--a-ink); background:var(--a-bg); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; border:1px solid var(--a-line); border-radius:12px; overflow:hidden; font-size:14px; line-height:1.55; }
+  #anki-home-sketch * { box-sizing:border-box; }
+  #anki-home-sketch .a-chrome { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:14px 24px; background:var(--a-paper); border-bottom:1px solid var(--a-line); }
+  #anki-home-sketch .a-name { font-size:15px; font-weight:500; }
+  #anki-home-sketch .a-meta { color:var(--a-muted); font-size:12px; }
+  #anki-home-sketch .a-content { padding:28px; }
+  #anki-home-sketch .a-top { display:flex; justify-content:space-between; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:26px; }
+  #anki-home-sketch .a-top h2 { font-size:23px; margin:0; font-weight:500; }
+  #anki-home-sketch .a-settings { display:flex; align-items:center; flex-wrap:wrap; gap:16px; }
+  #anki-home-sketch label { display:flex; align-items:center; gap:7px; color:var(--a-muted); font-size:13px; }
+  #anki-home-sketch input { width:70px; border:1px solid var(--a-line); padding:7px 8px; color:var(--a-ink); background:var(--a-paper); border-radius:6px; font:inherit; font-size:16px; }
+  #anki-home-sketch .a-scope { color:var(--a-muted); font-size:13px; }
+  #anki-home-sketch .a-overview { padding:25px; background:var(--a-paper); border:1px solid var(--a-line); border-radius:10px; }
+  #anki-home-sketch .a-kicker { color:var(--a-muted); font-size:12px; }
+  #anki-home-sketch .a-headline { font-size:27px; font-weight:500; margin:7px 0 22px; letter-spacing:-.5px; line-height:1.35; }
+  #anki-home-sketch .a-comparison { display:grid; grid-template-columns:90px minmax(0,1fr) 100px; gap:11px 14px; align-items:center; }
+  #anki-home-sketch .a-comparison span { font-size:13px; }
+  #anki-home-sketch .a-track { height:11px; background:var(--a-bg); border-radius:3px; overflow:hidden; }
+  #anki-home-sketch .a-fill { display:block; height:100%; border-radius:3px; }
+  #anki-home-sketch .a-value { text-align:right; font-variant-numeric:tabular-nums; }
+  #anki-home-sketch .a-forecast-fill { background:var(--a-alert); }
+  #anki-home-sketch .a-budget-fill { background:var(--a-accent); }
+  #anki-home-sketch .a-foot { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:flex-start; margin-top:20px; padding-top:14px; border-top:1px solid var(--a-line); }
+  #anki-home-sketch details { color:var(--a-muted); font-size:12px; }
+  #anki-home-sketch summary { cursor:pointer; min-height:32px; display:flex; align-items:center; gap:7px; }
+  #anki-home-sketch summary::before { content:"＋"; }
+  #anki-home-sketch details[open]>summary::before { content:"−"; }
+  #anki-home-sketch .a-today { display:flex; gap:12px; flex-wrap:wrap; color:var(--a-muted); font-size:13px; margin:18px 0 30px; }
+  #anki-home-sketch .a-section { display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin-bottom:15px; }
+  #anki-home-sketch h3 { margin:0; font-size:18px; font-weight:500; }
+  #anki-home-sketch .a-list { border-top:1px solid var(--a-line); }
+  #anki-home-sketch .a-row { padding:var(--a-row-space,17px) 0; display:grid; grid-template-columns:minmax(0,1fr) 160px; gap:18px; border-bottom:1px solid var(--a-line); }
+  #anki-home-sketch .a-title { font-weight:500; color:var(--a-ink); font-size:14px; }
+  #anki-home-sketch .a-title::before { display:none; }
+  #anki-home-sketch .a-tags { color:var(--a-muted); font-size:12px; margin-top:3px; }
+  #anki-home-sketch .a-cost { text-align:right; align-self:center; }
+  #anki-home-sketch .a-cost strong { display:block; font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; }
+  #anki-home-sketch .a-evidence { margin-top:10px; padding-left:12px; border-left:2px solid var(--a-line); font-size:12px; }
+  #anki-home-sketch .a-source { margin-top:15px; color:var(--a-muted); font-size:12px; }
+  @media(max-width:600px) { #anki-home-sketch .a-chrome { padding:12px 16px; align-items:flex-start; } #anki-home-sketch .a-chrome .a-meta { max-width:100px; text-align:right; } #anki-home-sketch .a-content { padding:20px 16px; } #anki-home-sketch .a-overview { padding:18px 15px; } #anki-home-sketch .a-headline { font-size:23px; } #anki-home-sketch .a-comparison { grid-template-columns:72px minmax(0,1fr) 85px; gap:12px 8px; } #anki-home-sketch .a-row { grid-template-columns:minmax(0,1fr); gap:5px; } #anki-home-sketch .a-cost { text-align:left; display:flex; align-items:baseline; gap:8px; } #anki-home-sketch .a-cost strong { font-size:17px; } #anki-home-sketch .a-section { flex-wrap:wrap; gap:4px; } }
+</style>
+<div id="anki-home-sketch" aria-label="Anki 注意力看板首页草图">
+  <div class="a-chrome"><span class="a-name">Attention Is All You Need</span><span class="a-meta">首页草图 · 示例数据</span></div>
+  <div class="a-content">
+    <div class="a-top">
+      <h2>注意力总览</h2>
+      <div class="a-settings"><span class="a-scope">评估范围：ALL 及其子牌组</span><label>每日预算 <input id="a-budget" type="number" min="1" max="1440" step="1" value="30" aria-label="示例每日预算，分钟"> 分钟</label></div>
+    </div>
+    <section class="a-overview" aria-label="未来负担与预算">
+      <div class="a-kicker">未来 7 天 · 9 月 5 日—11 日</div>
+      <div class="a-headline" id="a-verdict" aria-live="polite">预计超出预算 314 分钟</div>
+      <div class="a-comparison" role="img" id="a-bars" aria-label="预计复习464分钟，预算150分钟">
+        <span>预计复习</span><div class="a-track"><i class="a-fill a-forecast-fill" id="a-forecast" style="width:100%"></i></div><span class="a-value">464 分钟</span>
+        <span>可用预算</span><div class="a-track"><i class="a-fill a-budget-fill" id="a-budget-bar" style="width:32.33%"></i></div><span class="a-value" id="a-total">150 分钟</span>
+      </div>
+      <div class="a-foot"><span id="a-allowance" class="a-meta">新增建议：暂停新增</span><details><summary>预测依据</summary><div>FSRS 模拟 · 5 个有效复习日<br>预算＝每日投入 × 有效复习日</div></details></div>
+    </section>
+    <div class="a-today"><span>今天是休息日，不安排新增</span><span>·</span><span>今天尚未复习</span></div>
+    <section aria-label="值得检查的卡片">
+      <div class="a-section"><h3>值得检查的卡片</h3><span class="a-meta">展开卡片查看依据</span></div>
+      <div class="a-list">
+        <div class="a-row"><details><summary class="a-title">Kafka 消费者找到已提交的 offset 后，从哪里开始消费？</summary><div class="a-evidence">近 30 天累计 4.9 分钟<br>最近五次：70、35、78、109、81 秒<br>结构疑点：答案过长、多个问题</div></details><div class="a-cost"><strong>4.9 分钟</strong><span class="a-meta">近 30 天 · 持续耗时</span></div></div>
+        <div class="a-row"><details><summary class="a-title">账单系统应该选择唯一索引，还是普通索引？</summary><div class="a-evidence">最近三次：93、62、66 秒<br>复习日期：2025-11-13、2026-02-12、2026-06-16<br>近 30 天无记录 · 历史上反复慢</div></details><div class="a-cost"><strong>93 · 62 · 66 秒</strong><span class="a-meta">最近三次 · 单次偏慢</span></div></div>
+      </div>
+      <div class="a-source">示例卡片 · 不代表完整候选数量或最终排序</div>
+    </section>
+  </div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById("anki-home-sketch");
+  const input = root.querySelector("#a-budget");
+  function renderBudget() {
+    const daily = Number(input.value);
+    if (!Number.isFinite(daily) || daily < 1 || daily > 1440) { input.setCustomValidity("请输入 1 至 1440 分钟"); input.reportValidity(); return; }
+    input.setCustomValidity("");
+    const total = Math.round(daily * 5);
+    const maximum = Math.max(total,464);
+    root.querySelector("#a-total").textContent = total + " 分钟";
+    root.querySelector("#a-budget-bar").style.width = (total/maximum*100) + "%";
+    root.querySelector("#a-forecast").style.width = (464/maximum*100) + "%";
+    root.querySelector("#a-forecast").style.background = total < 464 ? "var(--a-alert)" : "var(--a-accent)";
+    root.querySelector("#a-verdict").textContent = total < 464 ? "预计超出预算 " + (464-total) + " 分钟" : total === 464 ? "预计负担与预算持平" : "预计负担低于预算 " + (total-464) + " 分钟";
+    root.querySelector("#a-allowance").textContent = total < 464 ? "新增建议：暂停新增" : "新增额度：需进一步模拟";
+    root.querySelector("#a-bars").setAttribute("aria-label", "预计复习464分钟，预算"+total+"分钟");
+  }
+  input.addEventListener("change",renderBudget);
+  renderBudget();
+  const design = { compact:false };
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({container:root,onChange:()=>root.style.setProperty("--a-row-space",design.compact ? "10px" : "17px")});
+    tweak.addToggle(design,"compact",{label:"紧凑卡片列表"});
+  }
+})();
+</script>
